@@ -47,7 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('Error fetching profile:', error);
                 setUser(null);
               } else {
-                setUser(profile);
+                // Safely cast the role to the expected type
+                const userProfile: Profile = {
+                  ...profile,
+                  role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
+                };
+                setUser(userProfile);
               }
             } catch (err) {
               console.error('Error in profile fetch:', err);
@@ -78,7 +83,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.error('Error fetching initial profile:', error);
               setUser(null);
             } else {
-              setUser(profile);
+              // Safely cast the role to the expected type
+              const userProfile: Profile = {
+                ...profile,
+                role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
+              };
+              setUser(userProfile);
             }
             setLoading(false);
           });
