@@ -61,6 +61,7 @@ const Auth = () => {
     setMessage('');
 
     try {
+      // First, sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -68,36 +69,52 @@ const Auth = () => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: fullName,
-            role: role, // Pass role in metadata
+            role: role,
           },
         },
       });
 
       if (error) {
         setError(error.message);
-      } else if (data.user) {
-        // Manually create profile with selected role
-        await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            email: data.user.email || '',
-            full_name: fullName,
-            role: role
-          });
+        return;
+      }
+
+      if (data.user) {
+        // Create profile immediately after successful signup
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email || '',
+              full_name: fullName,
+              role: role
+            });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            // Don't show this error to user as the main signup was successful
+          }
+        } catch (profileErr) {
+          console.error('Profile creation failed:', profileErr);
+          // Don't show this error to user as the main signup was successful
+        }
 
         if (data.user.email_confirmed_at) {
           setMessage('Account created successfully! You can now log in.');
         } else {
           setMessage('Please check your email to confirm your account before logging in.');
         }
+        
+        // Clear form
         setEmail('');
         setPassword('');
         setFullName('');
         setRole('cs_support');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Signup error:', err);
+      setError('An unexpected error occurred during signup');
     } finally {
       setLoading(false);
     }
