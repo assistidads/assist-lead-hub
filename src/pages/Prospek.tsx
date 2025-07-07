@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,15 +81,7 @@ export default function Prospek() {
         searchQuery={searchQuery}
         onEdit={handleEditProspek}
         onDelete={handleDeleteProspek}
-      />
-
-      {/* Prospek Form Dialog */}
-      <ProspekForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleFormSubmit}
-        prospek={selectedProspek}
-        mode={formMode}
+        onOpenForm={handleAddProspek}
       />
     </div>
   );

@@ -32,6 +32,16 @@ export interface Database {
         Insert: Omit<AlasanBukanLeads, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<AlasanBukanLeads, 'id' | 'created_at' | 'updated_at'>>;
       };
+      status_leads: {
+        Row: StatusLeads;
+        Insert: Omit<StatusLeads, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<StatusLeads, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      tipe_faskes: {
+        Row: TipeFaskes;
+        Insert: Omit<TipeFaskes, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<TipeFaskes, 'id' | 'created_at' | 'updated_at'>>;
+      };
     };
   };
 }
@@ -40,7 +50,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'cs_support';
+  role: 'admin' | 'cs_support' | 'advertiser';
   created_at: string;
   updated_at: string;
 }
@@ -50,9 +60,9 @@ export interface Prospek {
   tanggal_prospek: string;
   nama_prospek: string;
   no_whatsapp: string;
-  status_leads: 'prospek' | 'leads' | 'bukan_leads' | 'dihubungi';
+  status_leads_id: string;
   nama_faskes: string;
-  tipe_faskes: string;
+  tipe_faskes_id: string;
   kota: string;
   provinsi_nama: string;
   sumber_leads_id: string;
@@ -67,7 +77,7 @@ export interface Prospek {
 
 export interface SumberLeads {
   id: string;
-  nama: string;
+  sumber_leads: string;
   created_at: string;
   updated_at: string;
 }
@@ -81,14 +91,28 @@ export interface KodeAds {
 
 export interface LayananAssist {
   id: string;
-  nama: string;
+  layanan: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface AlasanBukanLeads {
   id: string;
-  alasan: string;
+  bukan_leads: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StatusLeads {
+  id: string;
+  status_leads: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TipeFaskes {
+  id: string;
+  tipe_faskes: string;
   created_at: string;
   updated_at: string;
 }

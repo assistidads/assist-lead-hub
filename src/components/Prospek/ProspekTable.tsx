@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,10 @@ interface ProspekTableProps {
   onEdit: (prospek: Prospek) => void;
   onDelete: (id: string) => void;
   onOpenForm: () => void;
+  searchQuery?: string;
 }
 
-const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm }) => {
+const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm, searchQuery }) => {
   const [data, setData] = useState<Prospek[]>([]);
   const { user } = useAuth();
 
@@ -41,6 +43,10 @@ const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenFor
     fetchData();
   }, [user]);
 
+  const filteredData = data.filter(row => 
+    searchQuery ? row.nama_prospek.toLowerCase().includes(searchQuery.toLowerCase()) : true
+  );
+
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -64,13 +70,13 @@ const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenFor
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row) => (
+              {filteredData.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.tanggal_prospek}</TableCell>
                   <TableCell>{row.nama_prospek}</TableCell>
                   <TableCell>{row.no_whatsapp}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{row.status_leads}</Badge>
+                    <Badge variant="secondary">Prospek</Badge>
                   </TableCell>
                   <TableCell>{row.nama_faskes}</TableCell>
                   <TableCell className="text-right">
@@ -85,7 +91,7 @@ const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenFor
                   </TableCell>
                 </TableRow>
               ))}
-              {data.length === 0 && (
+              {filteredData.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No data</TableCell>
                 </TableRow>
