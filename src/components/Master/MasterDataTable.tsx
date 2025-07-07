@@ -32,7 +32,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
     setLoading(true);
     try {
       const { data: result, error } = await supabase
-        .from(tableName)
+        .from(tableName as any)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -60,7 +60,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase
-        .from(tableName)
+        .from(tableName as any)
         .delete()
         .eq('id', id);
 

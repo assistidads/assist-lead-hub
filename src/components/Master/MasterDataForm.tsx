@@ -60,13 +60,13 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
       let result;
       if (editData) {
         result = await supabase
-          .from(tableName)
+          .from(tableName as any)
           .update(formData)
           .eq('id', editData.id);
       } else {
         result = await supabase
-          .from(tableName)
-          .insert(formData);
+          .from(tableName as any)
+          .insert([formData]);
       }
 
       if (result.error) {

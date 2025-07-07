@@ -16,7 +16,7 @@ interface ProspekTableProps {
   searchQuery?: string;
 }
 
-const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm, searchQuery }) => {
+export const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm, searchQuery }) => {
   const [data, setData] = useState<Prospek[]>([]);
   const { user } = useAuth();
 
