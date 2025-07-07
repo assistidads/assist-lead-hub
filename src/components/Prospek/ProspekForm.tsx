@@ -1,332 +1,349 @@
-
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import type { Prospek } from '@/types/database';
-import { mockMasterData } from '@/lib/supabase';
+import * as z from 'zod';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
-const prospekSchema = z.object({
-  tanggal_prospek: z.string().min(1, 'Tanggal prospek wajib diisi'),
-  nama_prospek: z.string().min(1, 'Nama prospek wajib diisi'),
-  no_whatsapp: z.string().min(10, 'Nomor WhatsApp tidak valid'),
-  status_leads: z.enum(['prospek', 'leads', 'bukan_leads', 'dihubungi']),
-  nama_faskes: z.string().min(1, 'Nama faskes wajib diisi'),
-  tipe_faskes: z.string().min(1, 'Tipe faskes wajib diisi'),
-  kota: z.string().min(1, 'Kota wajib diisi'),
-  provinsi_nama: z.string().min(1, 'Provinsi wajib diisi'),
-  sumber_leads_id: z.string().min(1, 'Sumber leads wajib dipilih'),
-  layanan_assist_id: z.string().min(1, 'Layanan assist wajib dipilih'),
+const formSchema = z.object({
+  tanggal_prospek: z.string(),
+  nama_prospek: z.string().min(2, {
+    message: 'Nama Prospek harus lebih dari 2 karakter.',
+  }),
+  no_whatsapp: z.string().min(10, {
+    message: 'Nomor WhatsApp harus lebih dari 10 karakter.',
+  }),
+  status_leads: z.enum(['prospek', 'leads', 'bukan_leads', 'dihubungi']).default('prospek'),
+  nama_faskes: z.string().min(2, {
+    message: 'Nama Faskes harus lebih dari 2 karakter.',
+  }),
+  tipe_faskes: z.string(),
+  kota: z.string(),
+  provinsi_nama: z.string(),
+  sumber_leads_id: z.string(),
+  kode_ads_id: z.string().optional(),
+  layanan_assist_id: z.string(),
   alasan_bukan_leads_id: z.string().optional(),
+  pic_leads_id: z.string(),
 });
 
-type ProspekFormData = z.infer<typeof prospekSchema>;
-
 interface ProspekFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: ProspekFormData) => void;
-  prospek?: Prospek | null;
-  mode: 'create' | 'edit';
+  onSubmit: (values: z.infer<typeof formSchema>) => void;
+  sumberLeadsOptions: { value: string; label: string }[];
+  kodeAdsOptions: { value: string; label: string }[];
+  layananAssistOptions: { value: string; label: string }[];
+  alasanBukanLeadsOptions: { value: string; label: string }[];
+  picLeadsOptions: { value: string; label: string }[];
 }
 
-export function ProspekForm({ isOpen, onClose, onSubmit, prospek, mode }: ProspekFormProps) {
-  const form = useForm<ProspekFormData>({
-    resolver: zodResolver(prospekSchema),
+export const ProspekForm: React.FC<ProspekFormProps> = ({
+  onSubmit,
+  sumberLeadsOptions,
+  kodeAdsOptions,
+  layananAssistOptions,
+  alasanBukanLeadsOptions,
+  picLeadsOptions,
+}) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      tanggal_prospek: prospek?.tanggal_prospek || new Date().toISOString().split('T')[0],
-      nama_prospek: prospek?.nama_prospek || '',
-      no_whatsapp: prospek?.no_whatsapp || '',
-      status_leads: prospek?.status_leads || 'prospek',
-      nama_faskes: prospek?.nama_faskes || '',
-      tipe_faskes: prospek?.tipe_faskes || '',
-      kota: prospek?.kota || '',
-      provinsi_nama: prospek?.provinsi_nama || '',
-      sumber_leads_id: prospek?.sumber_leads_id || '',
-      layanan_assist_id: prospek?.layanan_assist_id || '',
-      alasan_bukan_leads_id: prospek?.alasan_bukan_leads_id || '',
+      tanggal_prospek: new Date().toISOString().split('T')[0],
+      nama_prospek: '',
+      no_whatsapp: '',
+      status_leads: 'prospek',
+      nama_faskes: '',
+      tipe_faskes: '',
+      kota: '',
+      provinsi_nama: '',
+      sumber_leads_id: '',
+      kode_ads_id: '',
+      layanan_assist_id: '',
+      alasan_bukan_leads_id: '',
+      pic_leads_id: '',
     },
   });
 
-  const statusLeads = form.watch('status_leads');
+  const { user } = useAuth();
 
-  const handleSubmit = (data: ProspekFormData) => {
-    onSubmit(data);
-    form.reset();
-    onClose();
+  const [loading, setLoading] = useState(false);
+
+  const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
+    setLoading(true);
+    try {
+      // Ensure user is available
+      if (!user) {
+        throw new Error('User not authenticated.');
+      }
+
+      // Call the onSubmit prop to handle the form submission logic
+      onSubmit(values);
+
+      // Reset the form after successful submission
+      form.reset();
+      toast.success('Prospek berhasil ditambahkan!');
+    } catch (error: any) {
+      console.error('Error adding prospek:', error);
+      toast.error(`Gagal menambahkan prospek: ${error.message || 'Terjadi kesalahan.'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === 'create' ? 'Tambah Prospek Baru' : 'Edit Prospek'}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === 'create' 
-              ? 'Isi form di bawah untuk menambah prospek baru'
-              : 'Edit informasi prospek'
-            }
-          </DialogDescription>
-        </DialogHeader>
-
+    <Card>
+      <CardHeader>
+        <CardTitle>Tambah Prospek Baru</CardTitle>
+      </CardHeader>
+      <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="tanggal_prospek"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tanggal Prospek</FormLabel>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="tanggal_prospek"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tanggal Prospek</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nama_prospek"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nama Prospek</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nama Prospek" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="no_whatsapp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nomor WhatsApp</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nomor WhatsApp" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="status_leads"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status Leads</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih status" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status_leads"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status Leads</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih status leads" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="prospek">Prospek</SelectItem>
-                        <SelectItem value="leads">Leads</SelectItem>
-                        <SelectItem value="bukan_leads">Bukan Leads</SelectItem>
-                        <SelectItem value="dihubungi">Dihubungi</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nama_prospek"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Prospek</FormLabel>
+                    <SelectContent>
+                      <SelectItem value="prospek">Prospek</SelectItem>
+                      <SelectItem value="leads">Leads</SelectItem>
+                      <SelectItem value="bukan_leads">Bukan Leads</SelectItem>
+                      <SelectItem value="dihubungi">Dihubungi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nama_faskes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nama Faskes</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nama Faskes" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tipe_faskes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipe Faskes</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Tipe Faskes" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="kota"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kota</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Kota" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="provinsi_nama"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Provinsi</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Provinsi" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="sumber_leads_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sumber Leads</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input placeholder="Masukkan nama prospek" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih sumber leads" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="no_whatsapp"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nomor WhatsApp</FormLabel>
+                    <SelectContent>
+                      {sumberLeadsOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="kode_ads_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kode Ads</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input placeholder="081234567890" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih kode ads" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nama_faskes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Faskes</FormLabel>
+                    <SelectContent>
+                      {kodeAdsOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="layanan_assist_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Layanan Assist</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input placeholder="Nama fasilitas kesehatan" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih layanan assist" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="tipe_faskes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipe Faskes</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih tipe faskes" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Rumah Sakit">Rumah Sakit</SelectItem>
-                        <SelectItem value="Klinik">Klinik</SelectItem>
-                        <SelectItem value="Puskesmas">Puskesmas</SelectItem>
-                        <SelectItem value="Praktik Dokter">Praktik Dokter</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="kota"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Kota</FormLabel>
+                    <SelectContent>
+                      {layananAssistOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="alasan_bukan_leads_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alasan Bukan Leads</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input placeholder="Nama kota" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih alasan" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="provinsi_nama"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Provinsi</FormLabel>
+                    <SelectContent>
+                      {alasanBukanLeadsOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="pic_leads_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>PIC Leads</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <Input placeholder="Nama provinsi" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih PIC" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="sumber_leads_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sumber Leads</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih sumber leads" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {mockMasterData.sumberLeads.map((sumber) => (
-                          <SelectItem key={sumber.id} value={sumber.id}>
-                            {sumber.nama}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="layanan_assist_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Layanan Assist</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih layanan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {mockMasterData.layananAssist.map((layanan) => (
-                          <SelectItem key={layanan.id} value={layanan.id}>
-                            {layanan.nama}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {statusLeads === 'bukan_leads' && (
-              <FormField
-                control={form.control}
-                name="alasan_bukan_leads_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alasan Bukan Leads</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih alasan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {mockMasterData.alasanBukanLeads.map((alasan) => (
-                          <SelectItem key={alasan.id} value={alasan.id}>
-                            {alasan.alasan}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Batal
-              </Button>
-              <Button type="submit">
-                {mode === 'create' ? 'Tambah' : 'Simpan'}
-              </Button>
-            </DialogFooter>
+                    <SelectContent>
+                      {picLeadsOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Menambahkan...' : 'Tambah Prospek'}
+            </Button>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
-}
+};

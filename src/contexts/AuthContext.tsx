@@ -26,6 +26,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const createUserProfile = async (authUser: User) => {
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (!existingProfile) {
+        // Create profile if it doesn't exist
+        const { data: newProfile, error } = await supabase
+          .from('profiles')
+          .insert({
+            id: authUser.id,
+            email: authUser.email || '',
+            full_name: authUser.user_metadata?.full_name || 'User',
+            role: 'cs_support'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating profile:', error);
+          return null;
+        }
+        return newProfile;
+      }
+      return existingProfile;
+    } catch (error) {
+      console.error('Error in createUserProfile:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -34,27 +68,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from profiles table
+          // Try to fetch or create user profile
           try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+            let profile = await createUserProfile(session.user);
             
-            if (error) {
-              console.error('Error fetching profile:', error);
-              setUser(null);
-            } else {
+            if (profile) {
               // Safely cast the role to the expected type
               const userProfile: Profile = {
                 ...profile,
                 role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
               };
               setUser(userProfile);
+            } else {
+              setUser(null);
             }
           } catch (err) {
-            console.error('Error in profile fetch:', err);
+            console.error('Error in profile management:', err);
             setUser(null);
           }
         } else {
@@ -66,28 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        // Fetch user profile
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (error) {
-              console.error('Error fetching initial profile:', error);
-              setUser(null);
-            } else {
-              // Safely cast the role to the expected type
-              const userProfile: Profile = {
-                ...profile,
-                role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
-              };
-              setUser(userProfile);
-            }
-            setLoading(false);
-          });
+      if (session) {
+        // This will trigger the auth state change listener above
+        console.log('Initial session found:', session.user?.id);
       } else {
         setLoading(false);
       }

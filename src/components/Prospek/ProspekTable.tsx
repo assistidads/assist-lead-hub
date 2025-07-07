@@ -1,133 +1,101 @@
-
-import { useState } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
-import type { Prospek } from '@/types/database';
-import { mockProspekData, mockMasterData } from '@/lib/supabase';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Edit, Trash2, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Prospek } from '@/types/database';
 
 interface ProspekTableProps {
-  searchQuery: string;
   onEdit: (prospek: Prospek) => void;
   onDelete: (id: string) => void;
+  onOpenForm: () => void;
 }
 
-export function ProspekTable({ searchQuery, onEdit, onDelete }: ProspekTableProps) {
-  const [prospekData] = useState(mockProspekData);
+const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm }) => {
+  const [data, setData] = useState<Prospek[]>([]);
+  const { user } = useAuth();
 
-  const filteredData = prospekData.filter(prospek =>
-    prospek.nama_prospek.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    prospek.no_whatsapp.includes(searchQuery) ||
-    prospek.nama_faskes.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (user) {
+          const { data: prospekData, error } = await supabase
+            .from('prospek')
+            .select('*')
+            .eq('created_by', user.id);
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'leads':
-        return 'default';
-      case 'prospek':
-        return 'secondary';
-      case 'bukan_leads':
-        return 'destructive';
-      case 'dihubungi':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
+          if (error) {
+            console.error('Error fetching prospek data:', error);
+          } else {
+            setData(prospekData || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'leads':
-        return 'Leads';
-      case 'prospek':
-        return 'Prospek';
-      case 'bukan_leads':
-        return 'Bukan Leads';
-      case 'dihubungi':
-        return 'Dihubungi';
-      default:
-        return status;
-    }
-  };
-
-  const getSumberLeadsName = (id: string) => {
-    return mockMasterData.sumberLeads.find(s => s.id === id)?.nama || 'Unknown';
-  };
-
-  const getLayananAssistName = (id: string) => {
-    return mockMasterData.layananAssist.find(l => l.id === id)?.nama || 'Unknown';
-  };
+    fetchData();
+  }, [user]);
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Nama Prospek</TableHead>
-            <TableHead>WhatsApp</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Nama Faskes</TableHead>
-            <TableHead>Tipe Faskes</TableHead>
-            <TableHead>Kota</TableHead>
-            <TableHead>Sumber</TableHead>
-            <TableHead>Layanan</TableHead>
-            <TableHead>Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredData.map((prospek) => (
-            <TableRow key={prospek.id}>
-              <TableCell>{new Date(prospek.tanggal_prospek).toLocaleDateString('id-ID')}</TableCell>
-              <TableCell className="font-medium">{prospek.nama_prospek}</TableCell>
-              <TableCell>{prospek.no_whatsapp}</TableCell>
-              <TableCell>
-                <Badge variant={getStatusBadgeVariant(prospek.status_leads)}>
-                  {getStatusLabel(prospek.status_leads)}
-                </Badge>
-              </TableCell>
-              <TableCell>{prospek.nama_faskes}</TableCell>
-              <TableCell>{prospek.tipe_faskes}</TableCell>
-              <TableCell>{prospek.kota}</TableCell>
-              <TableCell>{getSumberLeadsName(prospek.sumber_leads_id)}</TableCell>
-              <TableCell>{getLayananAssistName(prospek.layanan_assist_id)}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => onEdit(prospek)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => onDelete(prospek.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      
-      {filteredData.length === 0 && (
-        <div className="p-8 text-center text-muted-foreground">
-          <p>Tidak ada data prospek yang ditemukan</p>
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle>Prospek Data</CardTitle>
+        <Button onClick={onOpenForm}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Prospek
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Tanggal</TableHead>
+                <TableHead>Nama Prospek</TableHead>
+                <TableHead>No. WhatsApp</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Faskes</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">{row.tanggal_prospek}</TableCell>
+                  <TableCell>{row.nama_prospek}</TableCell>
+                  <TableCell>{row.no_whatsapp}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{row.status_leads}</Badge>
+                  </TableCell>
+                  <TableCell>{row.nama_faskes}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(row)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(row.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {data.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">No data</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
-}
+};
+
+export default ProspekTable;
