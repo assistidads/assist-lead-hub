@@ -35,36 +35,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           // Fetch user profile from profiles table
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (error) {
-                console.error('Error fetching profile:', error);
-                setUser(null);
-              } else {
-                // Safely cast the role to the expected type
-                const userProfile: Profile = {
-                  ...profile,
-                  role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
-                };
-                setUser(userProfile);
-              }
-            } catch (err) {
-              console.error('Error in profile fetch:', err);
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching profile:', error);
               setUser(null);
-            } finally {
-              setLoading(false);
+            } else {
+              // Safely cast the role to the expected type
+              const userProfile: Profile = {
+                ...profile,
+                role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
+              };
+              setUser(userProfile);
             }
-          }, 0);
+          } catch (err) {
+            console.error('Error in profile fetch:', err);
+            setUser(null);
+          }
         } else {
           setUser(null);
-          setLoading(false);
         }
+        setLoading(false);
       }
     );
 
