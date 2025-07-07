@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Prospek } from '@/types/database';
+import type { Prospek } from '@/types/database';
 import { mockMasterData } from '@/lib/supabase';
 
 const prospekSchema = z.object({

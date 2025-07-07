@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
-import { Prospek } from '@/types/database';
+import type { Prospek } from '@/types/database';
 import { mockProspekData, mockMasterData } from '@/lib/supabase';
 
 interface ProspekTableProps {

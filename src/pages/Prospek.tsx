@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Search, Filter } from 'lucide-react';
 import { ProspekTable } from '@/components/Prospek/ProspekTable';
 import { ProspekForm } from '@/components/Prospek/ProspekForm';
-import { Prospek } from '@/types/database';
+import type { Prospek } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Prospek() {

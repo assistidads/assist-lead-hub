@@ -1,4 +1,41 @@
 
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: Profile;
+        Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      prospek: {
+        Row: Prospek;
+        Insert: Omit<Prospek, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Prospek, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      sumber_leads: {
+        Row: SumberLeads;
+        Insert: Omit<SumberLeads, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<SumberLeads, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      kode_ads: {
+        Row: KodeAds;
+        Insert: Omit<KodeAds, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<KodeAds, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      layanan_assist: {
+        Row: LayananAssist;
+        Insert: Omit<LayananAssist, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<LayananAssist, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      alasan_bukan_leads: {
+        Row: AlasanBukanLeads;
+        Insert: Omit<AlasanBukanLeads, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<AlasanBukanLeads, 'id' | 'created_at' | 'updated_at'>>;
+      };
+    };
+  };
+}
+
 export interface Profile {
   id: string;
   email: string;

@@ -2,13 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 
-// Mock data untuk development - nanti akan diganti dengan koneksi real Supabase
-const supabaseUrl = 'https://demo.supabase.co';
-const supabaseKey = 'demo-key';
+// Supabase configuration - akan menggunakan environment variables dari Supabase integration
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project-ref.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
-// Mock data untuk development
+// Mock data untuk development - akan diganti dengan data real dari Supabase
 export const mockProspekData = [
   {
     id: '1',
@@ -78,4 +78,110 @@ export const mockMasterData = {
     { id: '1', alasan: 'Tidak sesuai target', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
     { id: '2', alasan: 'Budget tidak mencukupi', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
   ],
+};
+
+// Supabase helper functions untuk CRUD operations
+export const supabaseHelpers = {
+  // Prospek operations
+  async getProspek() {
+    const { data, error } = await supabase
+      .from('prospek')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching prospek:', error);
+      return mockProspekData; // Fallback ke mock data
+    }
+    
+    return data || mockProspekData;
+  },
+
+  async createProspek(prospek: Omit<Database['public']['Tables']['prospek']['Insert'], 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('prospek')
+      .insert([prospek])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating prospek:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  async updateProspek(id: string, updates: Database['public']['Tables']['prospek']['Update']) {
+    const { data, error } = await supabase
+      .from('prospek')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating prospek:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  async deleteProspek(id: string) {
+    const { error } = await supabase
+      .from('prospek')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting prospek:', error);
+      throw error;
+    }
+    
+    return true;
+  },
+
+  // Master data operations
+  async getSumberLeads() {
+    const { data, error } = await supabase
+      .from('sumber_leads')
+      .select('*')
+      .order('nama');
+    
+    if (error) {
+      console.error('Error fetching sumber leads:', error);
+      return mockMasterData.sumberLeads;
+    }
+    
+    return data || mockMasterData.sumberLeads;
+  },
+
+  async getLayananAssist() {
+    const { data, error } = await supabase
+      .from('layanan_assist')
+      .select('*')
+      .order('nama');
+    
+    if (error) {
+      console.error('Error fetching layanan assist:', error);
+      return mockMasterData.layananAssist;
+    }
+    
+    return data || mockMasterData.layananAssist;
+  },
+
+  async getAlasanBukanLeads() {
+    const { data, error } = await supabase
+      .from('alasan_bukan_leads')
+      .select('*')
+      .order('alasan');
+    
+    if (error) {
+      console.error('Error fetching alasan bukan leads:', error);
+      return mockMasterData.alasanBukanLeads;
+    }
+    
+    return data || mockMasterData.alasanBukanLeads;
+  },
 };
