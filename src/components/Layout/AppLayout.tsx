@@ -13,7 +13,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth();
 
   return (
-    <SidebarProvider collapsedWidth={56}>
+    <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         

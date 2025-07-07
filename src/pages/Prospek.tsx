@@ -3,9 +3,47 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Filter } from 'lucide-react';
+import { ProspekTable } from '@/components/Prospek/ProspekTable';
+import { ProspekForm } from '@/components/Prospek/ProspekForm';
+import { Prospek } from '@/types/database';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Prospek() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedProspek, setSelectedProspek] = useState<Prospek | null>(null);
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const { toast } = useToast();
+
+  const handleAddProspek = () => {
+    setSelectedProspek(null);
+    setFormMode('create');
+    setIsFormOpen(true);
+  };
+
+  const handleEditProspek = (prospek: Prospek) => {
+    setSelectedProspek(prospek);
+    setFormMode('edit');
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteProspek = (id: string) => {
+    // Implementasi delete - untuk saat ini hanya menampilkan toast
+    console.log('Delete prospek:', id);
+    toast({
+      title: "Prospek dihapus",
+      description: "Data prospek berhasil dihapus",
+    });
+  };
+
+  const handleFormSubmit = (data: any) => {
+    // Implementasi submit form - untuk saat ini hanya menampilkan toast
+    console.log('Form submitted:', data);
+    toast({
+      title: formMode === 'create' ? "Prospek ditambahkan" : "Prospek diperbarui",
+      description: `Data prospek berhasil ${formMode === 'create' ? 'ditambahkan' : 'diperbarui'}`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -16,7 +54,7 @@ export default function Prospek() {
             Kelola data prospek dan leads Anda
           </p>
         </div>
-        <Button>
+        <Button onClick={handleAddProspek}>
           <Plus className="w-4 h-4 mr-2" />
           Tambah Prospek
         </Button>
@@ -39,11 +77,21 @@ export default function Prospek() {
         </Button>
       </div>
 
-      {/* Placeholder for Prospek Table */}
-      <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        <p className="text-lg">Tabel Data Prospek akan ditampilkan di sini</p>
-        <p className="text-sm mt-2">Fitur CRUD, filtering, dan pagination akan diimplementasi selanjutnya</p>
-      </div>
+      {/* Prospek Table */}
+      <ProspekTable
+        searchQuery={searchQuery}
+        onEdit={handleEditProspek}
+        onDelete={handleDeleteProspek}
+      />
+
+      {/* Prospek Form Dialog */}
+      <ProspekForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleFormSubmit}
+        prospek={selectedProspek}
+        mode={formMode}
+      />
     </div>
   );
 }

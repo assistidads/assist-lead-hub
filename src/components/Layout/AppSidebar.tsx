@@ -17,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -55,7 +54,6 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
   const { user } = useAuth();
 
   const filteredMenuItems = menuItems.filter(item =>
@@ -63,19 +61,17 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar className={collapsed ? 'w-14' : 'w-60'} collapsible>
+    <Sidebar>
       <SidebarContent>
         <div className="p-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <FileText className="w-4 h-4 text-primary-foreground" />
             </div>
-            {!collapsed && (
-              <div>
-                <h2 className="font-bold text-lg">Assist.id</h2>
-                <p className="text-xs text-muted-foreground">Lead Management</p>
-              </div>
-            )}
+            <div>
+              <h2 className="font-bold text-lg">Assist.id</h2>
+              <p className="text-xs text-muted-foreground">Lead Management</p>
+            </div>
           </div>
         </div>
 
@@ -98,7 +94,7 @@ export function AppSidebar() {
                       }
                     >
                       <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
