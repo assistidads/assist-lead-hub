@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +16,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState('cs_support');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,6 +68,7 @@ const Auth = () => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: fullName,
+            role: role, // Pass role in metadata
           },
         },
       });
@@ -73,6 +76,16 @@ const Auth = () => {
       if (error) {
         setError(error.message);
       } else if (data.user) {
+        // Manually create profile with selected role
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email || '',
+            full_name: fullName,
+            role: role
+          });
+
         if (data.user.email_confirmed_at) {
           setMessage('Account created successfully! You can now log in.');
         } else {
@@ -81,6 +94,7 @@ const Auth = () => {
         setEmail('');
         setPassword('');
         setFullName('');
+        setRole('cs_support');
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -201,6 +215,20 @@ const Auth = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="cs_support">CS Support</SelectItem>
+                      <SelectItem value="advertiser">Advertiser</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">

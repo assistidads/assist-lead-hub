@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const createUserProfile = async (authUser: User) => {
+  const createUserProfile = async (authUser: User, selectedRole?: string) => {
     try {
       const { data: existingProfile } = await supabase
         .from('profiles')
@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: authUser.id,
             email: authUser.email || '',
             full_name: authUser.user_metadata?.full_name || 'User',
-            role: 'cs_support'
+            role: selectedRole || 'cs_support'
           })
           .select()
           .single();
@@ -68,22 +68,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Try to fetch or create user profile
+          // Try to fetch user profile
           try {
-            let profile = await createUserProfile(session.user);
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
             
             if (profile) {
               // Safely cast the role to the expected type
               const userProfile: Profile = {
                 ...profile,
-                role: (profile.role as 'admin' | 'cs_support') || 'cs_support'
+                role: (profile.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
               };
               setUser(userProfile);
             } else {
               setUser(null);
             }
           } catch (err) {
-            console.error('Error in profile management:', err);
+            console.error('Error fetching profile:', err);
             setUser(null);
           }
         } else {
@@ -96,7 +100,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        // This will trigger the auth state change listener above
         console.log('Initial session found:', session.user?.id);
       } else {
         setLoading(false);
