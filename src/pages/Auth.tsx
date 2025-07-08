@@ -37,16 +37,18 @@ const Auth = () => {
     setError('');
 
     try {
+      console.log('Attempting login with email:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Login error:', error);
         setError(error.message);
       } else if (data.user) {
-        // Let the AuthContext handle the redirect
-        console.log('Login successful, user will be redirected by AuthContext');
+        console.log('Login successful, user:', data.user.id);
+        // AuthContext will handle the redirect
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -63,9 +65,9 @@ const Auth = () => {
     setMessage('');
 
     try {
-      console.log('Starting signup process with role:', role);
+      console.log('Starting signup process with:', { email, fullName, role });
       
-      // First, sign up the user
+      // Sign up the user with role in metadata
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -86,32 +88,12 @@ const Auth = () => {
 
       if (signUpData.user) {
         console.log('User created successfully:', signUpData.user.id);
+        console.log('User metadata:', signUpData.user.user_metadata);
         
-        // Wait a moment for the user to be fully created
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Create profile with the selected role
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: signUpData.user.id,
-            email: email,
-            full_name: fullName,
-            role: role
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          setError(`Profile creation failed: ${profileError.message}`);
-          return;
-        }
-
-        console.log('Profile created successfully with role:', role);
-
         // Check if email is confirmed (for instant login)
         if (signUpData.user.email_confirmed_at) {
-          console.log('Email confirmed, user will be redirected');
-          // User will be automatically redirected by AuthContext
+          console.log('Email confirmed, user will be automatically logged in');
+          // AuthContext will handle the redirect
         } else {
           setMessage('Akun berhasil dibuat! Silakan cek email Anda untuk mengonfirmasi akun sebelum login.');
         }
