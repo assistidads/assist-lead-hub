@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,10 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
+    let isInitialized = false;
 
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -84,11 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (isMounted) {
           setLoading(false);
+          isInitialized = true;
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
         if (isMounted) {
           setLoading(false);
+          isInitialized = true;
         }
       }
     };
@@ -99,21 +102,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isMounted) return;
         
         console.log('Auth state changed:', event, session?.user?.id);
+        
+        // Prevent processing events before initial session is loaded
+        if (!isInitialized && event !== 'INITIAL_SESSION') {
+          return;
+        }
+        
         setSession(session);
         
         if (session?.user) {
-          // Don't set loading for existing sessions to avoid unnecessary loading states
-          if (event === 'SIGNED_IN' && !user) {
+          if (event === 'SIGNED_IN') {
             setLoading(true);
             const profile = await fetchUserProfile(session.user.id);
             if (isMounted) {
               setUser(profile);
               setLoading(false);
             }
-          } else if (event === 'TOKEN_REFRESHED' && user) {
-            // For token refresh, just update session without refetching profile
+          } else if (event === 'TOKEN_REFRESHED') {
+            // For token refresh, keep existing user data
             console.log('Token refreshed, keeping existing user data');
           } else if (!user) {
+            // Only fetch profile if we don't have user data
             const profile = await fetchUserProfile(session.user.id);
             if (isMounted) {
               setUser(profile);
@@ -122,7 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           if (isMounted) {
             setUser(null);
-            setLoading(false);
+            if (event === 'SIGNED_OUT') {
+              setLoading(false);
+            }
           }
         }
       }
@@ -135,18 +146,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Remove user dependency to prevent unnecessary re-runs
+  }, []); // Remove all dependencies to prevent re-runs
 
   const logout = async () => {
     try {
-      setLoading(true);
+      console.log('Logging out...');
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
     } catch (error) {
       console.error('Error signing out:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
