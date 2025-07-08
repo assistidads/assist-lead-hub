@@ -34,29 +34,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Try to fetch user profile
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (error && error.code !== 'PGRST116') {
-              console.error('Error fetching profile:', error);
-              setUser(null);
-            } else if (profile) {
-              // Safely cast the role to the expected type
-              const userProfile: Profile = {
-                ...profile,
-                role: (profile.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
-              };
-              setUser(userProfile);
-            } else {
-              setUser(null);
+          // Try to fetch user profile with retry mechanism
+          let retries = 3;
+          let profile = null;
+          
+          while (retries > 0 && !profile) {
+            try {
+              console.log(`Attempting to fetch profile, retries left: ${retries}`);
+              const { data: profileData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (error) {
+                if (error.code === 'PGRST116') {
+                  console.log('Profile not found, will retry...');
+                  retries--;
+                  if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    continue;
+                  }
+                } else {
+                  console.error('Error fetching profile:', error);
+                  break;
+                }
+              } else if (profileData) {
+                profile = profileData;
+                console.log('Profile fetched successfully:', profile);
+                break;
+              }
+            } catch (err) {
+              console.error('Error fetching profile:', err);
+              retries--;
+              if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
             }
-          } catch (err) {
-            console.error('Error fetching profile:', err);
+          }
+          
+          if (profile) {
+            // Safely cast the role to the expected type
+            const userProfile: Profile = {
+              ...profile,
+              role: (profile.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
+            };
+            console.log('Setting user profile with role:', userProfile.role);
+            setUser(userProfile);
+          } else {
+            console.log('Could not fetch profile after retries');
             setUser(null);
           }
         } else {

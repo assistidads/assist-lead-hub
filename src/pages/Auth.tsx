@@ -16,7 +16,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('cs_support');
+  const [role, setRole] = useState<'admin' | 'cs_support' | 'advertiser'>('cs_support');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,9 +45,11 @@ const Auth = () => {
       if (error) {
         setError(error.message);
       } else if (data.user) {
-        navigate('/');
+        // Let the AuthContext handle the redirect
+        console.log('Login successful, user will be redirected by AuthContext');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -61,8 +63,10 @@ const Auth = () => {
     setMessage('');
 
     try {
+      console.log('Starting signup process with role:', role);
+      
       // First, sign up the user
-      const { data, error } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -74,36 +78,42 @@ const Auth = () => {
         },
       });
 
-      if (error) {
-        setError(error.message);
+      if (signUpError) {
+        console.error('Signup error:', signUpError);
+        setError(signUpError.message);
         return;
       }
 
-      if (data.user) {
-        // Create profile immediately after successful signup
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              email: data.user.email || '',
-              full_name: fullName,
-              role: role
-            });
+      if (signUpData.user) {
+        console.log('User created successfully:', signUpData.user.id);
+        
+        // Wait a moment for the user to be fully created
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            // Don't show this error to user as the main signup was successful
-          }
-        } catch (profileErr) {
-          console.error('Profile creation failed:', profileErr);
-          // Don't show this error to user as the main signup was successful
+        // Create profile with the selected role
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: signUpData.user.id,
+            email: email,
+            full_name: fullName,
+            role: role
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          setError(`Profile creation failed: ${profileError.message}`);
+          return;
         }
 
-        if (data.user.email_confirmed_at) {
-          setMessage('Account created successfully! You can now log in.');
+        console.log('Profile created successfully with role:', role);
+
+        // Check if email is confirmed (for instant login)
+        if (signUpData.user.email_confirmed_at) {
+          console.log('Email confirmed, user will be redirected');
+          // User will be automatically redirected by AuthContext
         } else {
-          setMessage('Please check your email to confirm your account before logging in.');
+          setMessage('Akun berhasil dibuat! Silakan cek email Anda untuk mengonfirmasi akun sebelum login.');
         }
         
         // Clear form
@@ -114,7 +124,7 @@ const Auth = () => {
       }
     } catch (err) {
       console.error('Signup error:', err);
-      setError('An unexpected error occurred during signup');
+      setError('Terjadi kesalahan yang tidak terduga saat membuat akun');
     } finally {
       setLoading(false);
     }
@@ -236,7 +246,7 @@ const Auth = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={role} onValueChange={setRole}>
+                  <Select value={role} onValueChange={(value: 'admin' | 'cs_support' | 'advertiser') => setRole(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
