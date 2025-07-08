@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,14 +22,19 @@ const Auth = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+
+  // Get the path user was trying to access before being redirected to auth
+  const from = (location.state as any)?.from?.pathname || '/';
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate('/');
+      console.log('User already logged in, redirecting to:', from);
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, from]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +50,14 @@ const Auth = () => {
 
       if (error) {
         console.error('Login error:', error);
-        setError(error.message);
+        setError(error.message === 'Invalid login credentials' ? 'Email atau password salah' : error.message);
       } else if (data.user) {
         console.log('Login successful, user:', data.user.id);
-        // AuthContext will handle the redirect
+        // Navigation will be handled by the useEffect when user state updates
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('An unexpected error occurred');
+      setError('Terjadi kesalahan yang tidak terduga');
     } finally {
       setLoading(false);
     }
@@ -67,7 +72,6 @@ const Auth = () => {
     try {
       console.log('Starting signup process with:', { email, fullName, role });
       
-      // Sign up the user with role in metadata
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -90,10 +94,9 @@ const Auth = () => {
         console.log('User created successfully:', signUpData.user.id);
         console.log('User metadata:', signUpData.user.user_metadata);
         
-        // Check if email is confirmed (for instant login)
         if (signUpData.user.email_confirmed_at) {
           console.log('Email confirmed, user will be automatically logged in');
-          // AuthContext will handle the redirect
+          setMessage('Akun berhasil dibuat! Anda akan dialihkan ke dashboard...');
         } else {
           setMessage('Akun berhasil dibuat! Silakan cek email Anda untuk mengonfirmasi akun sebelum login.');
         }

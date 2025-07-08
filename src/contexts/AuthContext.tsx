@@ -26,68 +26,127 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId);
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+      
+      if (profileData) {
+        const userProfile: Profile = {
+          ...profileData,
+          role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
+        };
+        console.log('Profile fetched successfully:', userProfile);
+        return userProfile;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      return null;
+    }
+  };
+
   useEffect(() => {
+    let isMounted = true;
+
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (isMounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session?.user && isMounted) {
+          console.log('Initial session found:', session.user.id);
+          setSession(session);
+          
+          const profile = await fetchUserProfile(session.user.id);
+          if (isMounted) {
+            setUser(profile);
+          }
+        }
+        
+        if (isMounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile with simplified approach
-          try {
-            console.log('Fetching profile for user:', session.user.id);
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (error) {
-              console.error('Error fetching profile:', error);
-              if (error.code === 'PGRST116') {
-                console.log('Profile not found, this might be a new user');
-              }
-              setUser(null);
-            } else if (profileData) {
-              // Safely cast the role to the expected type
-              const userProfile: Profile = {
-                ...profileData,
-                role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
-              };
-              console.log('Profile fetched successfully:', userProfile);
-              setUser(userProfile);
+          // Don't set loading for existing sessions to avoid unnecessary loading states
+          if (event === 'SIGNED_IN' && !user) {
+            setLoading(true);
+            const profile = await fetchUserProfile(session.user.id);
+            if (isMounted) {
+              setUser(profile);
+              setLoading(false);
             }
-          } catch (err) {
-            console.error('Error fetching profile:', err);
-            setUser(null);
+          } else if (event === 'TOKEN_REFRESHED' && user) {
+            // For token refresh, just update session without refetching profile
+            console.log('Token refreshed, keeping existing user data');
+          } else if (!user) {
+            const profile = await fetchUserProfile(session.user.id);
+            if (isMounted) {
+              setUser(profile);
+            }
           }
         } else {
-          setUser(null);
+          if (isMounted) {
+            setUser(null);
+            setLoading(false);
+          }
         }
-        setLoading(false);
       }
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        console.log('Initial session found:', session.user?.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    getInitialSession();
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // Remove user dependency to prevent unnecessary re-runs
 
   const logout = async () => {
     try {
+      setLoading(true);
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
