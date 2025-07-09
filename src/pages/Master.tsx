@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +46,7 @@ export default function Master() {
       fields: [
         { key: 'full_name', label: 'Nama Admin', type: 'text' as const, required: true },
         { key: 'email', label: 'Email', type: 'email' as const, required: true },
+        { key: 'password', label: 'Password (Opsional untuk edit)', type: 'password' as const, required: false },
         { 
           key: 'role', 
           label: 'Role', 

@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 interface FormField {
   key: string;
   label: string;
-  type: 'text' | 'email' | 'select';
+  type: 'text' | 'email' | 'select' | 'password';
   options?: { value: string; label: string }[];
   maxLength?: number;
   required?: boolean;
@@ -52,6 +52,41 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
     }
   }, [editData, fields, isOpen]);
 
+  const createNewUser = async (userData: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No session found');
+      }
+
+      const response = await fetch('/functions/v1/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password || 'TempPassword123!', // Default password if not provided
+          full_name: userData.full_name,
+          role: userData.role
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -80,14 +115,8 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
             return;
           }
         } else {
-          // For new users, we need to create them through Supabase Auth
-          // Since we can't create users directly in profiles table without auth
-          toast({
-            title: "Info",
-            description: "Pembuatan user baru harus dilakukan melalui sistem registrasi",
-            variant: "destructive"
-          });
-          return;
+          // Create new user through edge function
+          await createNewUser(formData);
         }
       } else {
         // Handle other tables normally
@@ -124,7 +153,7 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Terjadi kesalahan saat menyimpan data",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan data",
         variant: "destructive"
       });
     } finally {
@@ -148,13 +177,6 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {tableName === 'profiles' && !editData && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                Untuk menambah user baru, gunakan sistem registrasi melalui halaman auth.
-              </p>
-            </div>
-          )}
           {fields.map((field) => (
             <div key={field.key} className="space-y-2">
               <Label htmlFor={field.key}>{field.label}</Label>
@@ -182,7 +204,7 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
                   onChange={(e) => handleInputChange(field.key, e.target.value)}
                   maxLength={field.maxLength}
                   required={field.required}
-                  disabled={tableName === 'profiles' && !editData}
+                  placeholder={field.type === 'password' ? 'Kosongkan jika tidak ingin mengubah password' : ''}
                 />
               )}
             </div>
@@ -191,10 +213,7 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Batal
             </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || (tableName === 'profiles' && !editData)}
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
