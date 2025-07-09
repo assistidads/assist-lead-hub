@@ -11,22 +11,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  // Show loading while checking auth state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Memuat...</p>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
+  // Redirect to auth if not authenticated
   if (!user) {
-    // Save the attempted location for redirect after login
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // Render protected content
   return <>{children}</>;
 };
 

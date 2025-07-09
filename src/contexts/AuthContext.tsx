@@ -24,11 +24,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
     try {
-      console.log('Fetching profile for user:', userId);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -41,12 +39,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (profileData) {
-        const userProfile: Profile = {
+        return {
           ...profileData,
           role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
         };
-        console.log('Profile fetched successfully:', userProfile);
-        return userProfile;
       }
       
       return null;
@@ -57,93 +53,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    const initializeAuth = async () => {
+    // Initialize auth state
+    const initAuth = async () => {
       try {
-        console.log('Initializing auth...');
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        // Get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-            setInitialLoad(false);
-          }
-          return;
-        }
-
-        if (session?.user && mounted) {
-          console.log('Session found, fetching user profile:', session.user.id);
-          setSession(session);
-          
-          const profile = await fetchUserProfile(session.user.id);
-          if (mounted) {
+        if (currentSession && isMounted) {
+          setSession(currentSession);
+          const profile = await fetchUserProfile(currentSession.user.id);
+          if (isMounted) {
             setUser(profile);
           }
         }
-        
-        if (mounted) {
-          setLoading(false);
-          setInitialLoad(false);
-        }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (mounted) {
+      } finally {
+        if (isMounted) {
           setLoading(false);
-          setInitialLoad(false);
         }
       }
     };
 
-    // Set up auth state change listener
+    // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted || initialLoad) return;
+      async (event, newSession) => {
+        if (!isMounted) return;
         
         console.log('Auth state changed:', event);
         
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('User signed in, fetching profile');
+        if (event === 'SIGNED_IN' && newSession) {
           setLoading(true);
-          setSession(session);
-          
-          const profile = await fetchUserProfile(session.user.id);
-          if (mounted) {
+          setSession(newSession);
+          const profile = await fetchUserProfile(newSession.user.id);
+          if (isMounted) {
             setUser(profile);
             setLoading(false);
           }
         } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-          if (mounted) {
-            setUser(null);
-            setSession(null);
-            setLoading(false);
-          }
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          console.log('Token refreshed');
-          if (mounted) {
-            setSession(session);
-            // Keep existing user data, don't refetch
-          }
+          setUser(null);
+          setSession(null);
+          setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && newSession) {
+          setSession(newSession);
+          // Keep existing user data on token refresh
         }
       }
     );
 
-    // Initialize auth after setting up listener
-    initializeAuth();
+    // Initialize
+    initAuth();
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency array to prevent re-runs
+  }, []);
 
   const logout = async () => {
     try {
-      console.log('Logging out...');
       setLoading(true);
       await supabase.auth.signOut();
       setUser(null);

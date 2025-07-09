@@ -18,25 +18,30 @@ interface ProspekTableProps {
 
 export const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm, searchQuery }) => {
   const [data, setData] = useState<Prospek[]>([]);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return;
+      
+      setLoading(true);
       try {
-        if (user) {
-          const { data: prospekData, error } = await supabase
-            .from('prospek')
-            .select('*')
-            .eq('created_by', user.id);
+        const { data: prospekData, error } = await supabase
+          .from('prospek')
+          .select('*')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false });
 
-          if (error) {
-            console.error('Error fetching prospek data:', error);
-          } else {
-            setData(prospekData || []);
-          }
+        if (error) {
+          console.error('Error fetching prospek data:', error);
+        } else {
+          setData(prospekData || []);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -70,28 +75,33 @@ export const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, on
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.tanggal_prospek}</TableCell>
-                  <TableCell>{row.nama_prospek}</TableCell>
-                  <TableCell>{row.no_whatsapp}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">Prospek</Badge>
-                  </TableCell>
-                  <TableCell>{row.nama_faskes}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(row)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDelete(row.id)}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </Button>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
-              ))}
-              {filteredData.length === 0 && (
+              ) : filteredData.length > 0 ? (
+                filteredData.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium">{row.tanggal_prospek}</TableCell>
+                    <TableCell>{row.nama_prospek}</TableCell>
+                    <TableCell>{row.no_whatsapp}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">Prospek</Badge>
+                    </TableCell>
+                    <TableCell>{row.nama_faskes}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => onEdit(row)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => onDelete(row.id)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No data</TableCell>
                 </TableRow>
