@@ -4,7 +4,6 @@ import {
   Database,
   FileText,
   Home,
-  Settings,
   Users,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -43,12 +42,6 @@ const menuItems = [
     title: 'Data Master',
     url: '/master',
     icon: Database,
-    roles: ['admin'],
-  },
-  {
-    title: 'User Management',
-    url: '/users',
-    icon: Settings,
     roles: ['admin'],
   },
 ];

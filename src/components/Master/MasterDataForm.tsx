@@ -57,35 +57,76 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
     setLoading(true);
 
     try {
-      let result;
-      if (editData) {
-        result = await supabase
-          .from(tableName as any)
-          .update(formData)
-          .eq('id', editData.id);
+      // Special handling for profiles table (users)
+      if (tableName === 'profiles') {
+        if (editData) {
+          // Update existing profile
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              full_name: formData.full_name,
+              email: formData.email,
+              role: formData.role
+            })
+            .eq('id', editData.id);
+
+          if (error) {
+            console.error('Error updating profile:', error);
+            toast({
+              title: "Error",
+              description: "Gagal memperbarui data user: " + error.message,
+              variant: "destructive"
+            });
+            return;
+          }
+        } else {
+          // For new users, we need to create them through Supabase Auth
+          // Since we can't create users directly in profiles table without auth
+          toast({
+            title: "Info",
+            description: "Pembuatan user baru harus dilakukan melalui sistem registrasi",
+            variant: "destructive"
+          });
+          return;
+        }
       } else {
-        result = await supabase
-          .from(tableName as any)
-          .insert([formData]);
+        // Handle other tables normally
+        let result;
+        if (editData) {
+          result = await supabase
+            .from(tableName as any)
+            .update(formData)
+            .eq('id', editData.id);
+        } else {
+          result = await supabase
+            .from(tableName as any)
+            .insert([formData]);
+        }
+
+        if (result.error) {
+          console.error('Error saving data:', result.error);
+          toast({
+            title: "Error",
+            description: "Gagal menyimpan data: " + result.error.message,
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
-      if (result.error) {
-        console.error('Error saving data:', result.error);
-        toast({
-          title: "Error",
-          description: "Gagal menyimpan data",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Berhasil",
-          description: `Data berhasil ${editData ? 'diperbarui' : 'ditambahkan'}`
-        });
-        onSuccess();
-        onClose();
-      }
+      toast({
+        title: "Berhasil",
+        description: `Data berhasil ${editData ? 'diperbarui' : 'ditambahkan'}`
+      });
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menyimpan data",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -107,6 +148,13 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {tableName === 'profiles' && !editData && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                Untuk menambah user baru, gunakan sistem registrasi melalui halaman auth.
+              </p>
+            </div>
+          )}
           {fields.map((field) => (
             <div key={field.key} className="space-y-2">
               <Label htmlFor={field.key}>{field.label}</Label>
@@ -134,6 +182,7 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
                   onChange={(e) => handleInputChange(field.key, e.target.value)}
                   maxLength={field.maxLength}
                   required={field.required}
+                  disabled={tableName === 'profiles' && !editData}
                 />
               )}
             </div>
@@ -142,7 +191,10 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading || (tableName === 'profiles' && !editData)}
+            >
               {loading ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>

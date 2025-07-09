@@ -11,8 +11,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  console.log('ProtectedRoute: user:', user?.id || 'none', 'loading:', loading);
-
   // Show loading while checking auth state
   if (loading) {
     return (
@@ -27,12 +25,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Redirect to auth if not authenticated
   if (!user) {
-    console.log('ProtectedRoute: No user, redirecting to auth');
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   // Render protected content
-  console.log('ProtectedRoute: User authenticated, rendering children');
   return <>{children}</>;
 };
 
