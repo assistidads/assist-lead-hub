@@ -25,107 +25,115 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
-    try {
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return null;
-      }
-      
-      if (profileData) {
-        return {
-          ...profileData,
-          role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
-        };
-      }
-      
-      return null;
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    let isMounted = true;
-
-    // Initialize auth state
-    const initAuth = async () => {
+    console.log('AuthProvider: Setting up auth');
+    
+    // Get initial session
+    const getInitialSession = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('AuthProvider: Initial session:', currentSession?.user?.id || 'none');
         
-        if (currentSession && isMounted) {
-          setSession(currentSession);
-          const profile = await fetchUserProfile(currentSession.user.id);
-          if (isMounted) {
-            setUser(profile);
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Fetch user profile
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
+          
+          if (profileData) {
+            setUser({
+              ...profileData,
+              role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
+            });
           }
+        } else {
+          setUser(null);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('AuthProvider: Error getting initial session:', error);
+        setSession(null);
+        setUser(null);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        if (!isMounted) return;
+        console.log('AuthProvider: Auth state changed:', event, newSession?.user?.id || 'none');
         
-        console.log('Auth state changed:', event);
+        setSession(newSession);
         
-        if (event === 'SIGNED_IN' && newSession) {
+        if (event === 'SIGNED_IN' && newSession?.user) {
           setLoading(true);
-          setSession(newSession);
-          const profile = await fetchUserProfile(newSession.user.id);
-          if (isMounted) {
-            setUser(profile);
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newSession.user.id)
+              .single();
+            
+            if (profileData) {
+              setUser({
+                ...profileData,
+                role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
+              });
+            } else {
+              setUser(null);
+            }
+          } catch (error) {
+            console.error('AuthProvider: Error fetching user profile:', error);
+            setUser(null);
+          } finally {
             setLoading(false);
           }
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || !newSession) {
           setUser(null);
-          setSession(null);
           setLoading(false);
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
-          setSession(newSession);
-          // Keep existing user data on token refresh
+          // Keep existing user data on token refresh, just update session
+          console.log('AuthProvider: Token refreshed');
         }
       }
     );
 
-    // Initialize
-    initAuth();
+    // Get initial session
+    getInitialSession();
 
     return () => {
-      isMounted = false;
+      console.log('AuthProvider: Cleaning up');
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   const logout = async () => {
+    console.log('AuthProvider: Logging out');
+    setLoading(true);
     try {
-      setLoading(true);
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('AuthProvider: Error signing out:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const value = {
+    user,
+    session,
+    loading,
+    logout
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
