@@ -67,9 +67,12 @@ export interface Prospek {
   provinsi_nama: string;
   sumber_leads_id: string;
   kode_ads_id?: string;
+  id_ads?: string;
   layanan_assist_id: string;
   alasan_bukan_leads_id?: string;
+  keterangan_bukan_leads?: string;
   pic_leads_id: string;
+  tanggal_perubahan_status_leads?: string;
   created_by: string;
   created_at: string;
   updated_at: string;

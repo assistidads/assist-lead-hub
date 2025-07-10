@@ -6,6 +6,7 @@ import { Profile } from '@/types/database';
 
 interface AuthContextType {
   user: Profile | null;
+  profile: Profile | null;
   session: Session | null;
   loading: boolean;
   logout: () => Promise<void>;
@@ -124,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
+    profile: user, // Add profile property that points to user
     session,
     loading,
     logout
