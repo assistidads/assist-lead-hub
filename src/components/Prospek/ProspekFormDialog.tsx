@@ -239,6 +239,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   }, [open, prospek, form, profile, user, provinces]);
 
   const handleSumberLeadsChange = (value: string) => {
+    if (!value) return; // Prevent empty string values
+    
     setSelectedSumberLeads(value);
     form.setValue('sumber_leads_id', value);
     
@@ -253,6 +255,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   };
 
   const handleStatusLeadsChange = (value: string) => {
+    if (!value) return; // Prevent empty string values
+    
     setSelectedStatusLeads(value);
     form.setValue('status_leads_id', value);
     
@@ -267,6 +271,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   };
 
   const handleProvinceChange = (provinceName: string) => {
+    if (!provinceName) return; // Prevent empty string values
+    
     form.setValue('provinsi_nama', provinceName);
     form.setValue('kota', '');
     
@@ -419,7 +425,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sumber Leads</FormLabel>
-                    <Select onValueChange={handleSumberLeadsChange} value={field.value || ''}>
+                    <Select onValueChange={handleSumberLeadsChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih sumber leads" />
@@ -446,7 +452,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Kode Ads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih kode ads" />
@@ -471,7 +477,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>ID Ads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih ID ads" />
@@ -498,7 +504,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Leads</FormLabel>
-                    <Select onValueChange={handleStatusLeadsChange} value={field.value || ''}>
+                    <Select onValueChange={handleStatusLeadsChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status leads" />
@@ -525,7 +531,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Bukan Leads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih alasan bukan leads" />
@@ -566,7 +572,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Layanan Assist</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih layanan assist" />
@@ -605,7 +611,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipe Faskes</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih tipe faskes" />
@@ -630,7 +636,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provinsi</FormLabel>
-                    <Select onValueChange={handleProvinceChange} value={field.value || ''}>
+                    <Select onValueChange={handleProvinceChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih provinsi" />
@@ -655,7 +661,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Kota/Kabupaten</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih kota/kabupaten" />
@@ -681,7 +687,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>PIC Leads</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih PIC" />
