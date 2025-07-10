@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Edit, Trash2, Plus, Search, Filter, CalendarIcon, RefreshCcw } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, CalendarIcon, RefreshCcw, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { ProspekDetailDialog } from './ProspekDetailDialog';
 import type { Prospek } from '@/types/database';
 
 interface ProspekTableNewProps {
@@ -35,6 +36,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDetailProspek, setSelectedDetailProspek] = useState<any>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [filters, setFilters] = useState({
     sumber_leads: [] as string[],
     kode_ads: [] as string[],
@@ -65,10 +68,10 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       fetchData();
     }
-  }, [pagination.page, pagination.pageSize, searchQuery, filters, refreshTrigger, user]);
+  }, [pagination.page, pagination.pageSize, searchQuery, filters, refreshTrigger, user, profile]);
 
   const fetchMasterData = async () => {
     try {
@@ -162,8 +165,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   };
 
   const fetchData = async () => {
-    if (!user) {
-      console.log('No user found, skipping data fetch');
+    if (!user || !profile) {
+      console.log('No user or profile found, skipping data fetch');
       return;
     }
     
@@ -265,6 +268,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     }
   };
 
+  const handleShowDetail = (prospek: any) => {
+    setSelectedDetailProspek(prospek);
+    setIsDetailDialogOpen(true);
+  };
+
   const resetFilters = () => {
     setFilters({
       sumber_leads: [],
@@ -280,7 +288,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   const totalPages = Math.ceil(pagination.total / pagination.pageSize);
 
-  if (!user) {
+  if (!user || !profile) {
     return (
       <Card className="w-full">
         <CardContent className="flex items-center justify-center p-8">
@@ -291,304 +299,331 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle>Data Prospek</CardTitle>
-        <Button onClick={onOpenForm}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Prospek
-        </Button>
-      </CardHeader>
-      
-      <CardContent>
-        {/* Search and Filters */}
-        <div className="space-y-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari prospek..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetFilters}>
-                Reset Filter
-              </Button>
-            </div>
-          </div>
-
-          {/* Filter Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Sumber Leads</label>
-              <Select
-                value={filters.sumber_leads.length > 0 ? 'selected' : ''}
-                onValueChange={(value) => {
-                  if (value && value !== 'selected') {
-                    setFilters(prev => ({
-                      ...prev,
-                      sumber_leads: prev.sumber_leads.includes(value) 
-                        ? prev.sumber_leads.filter(id => id !== value)
-                        : [...prev.sumber_leads, value]
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih sumber leads" />
-                </SelectTrigger>
-                <SelectContent>
-                  {masterData.sumberLeads.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.sumber_leads}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1 block">Status Leads</label>
-              <Select
-                value={filters.status_leads.length > 0 ? 'selected' : ''}
-                onValueChange={(value) => {
-                  if (value && value !== 'selected') {
-                    setFilters(prev => ({
-                      ...prev,
-                      status_leads: prev.status_leads.includes(value) 
-                        ? prev.status_leads.filter(id => id !== value)
-                        : [...prev.status_leads, value]
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih status leads" />
-                </SelectTrigger>
-                <SelectContent>
-                  {masterData.statusLeads.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.status_leads}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1 block">Rentang Waktu</label>
-              <Select
-                value={filters.date_range}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, date_range: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih rentang waktu" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Hari ini</SelectItem>
-                  <SelectItem value="yesterday">Kemarin</SelectItem>
-                  <SelectItem value="this_week">Minggu ini</SelectItem>
-                  <SelectItem value="last_week">Minggu lalu</SelectItem>
-                  <SelectItem value="this_month">Bulan ini</SelectItem>
-                  <SelectItem value="last_month">Bulan kemarin</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {filters.date_range === 'custom' && (
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !filters.custom_start_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.custom_start_date ? format(filters.custom_start_date, "dd/MM/yyyy") : "Dari"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={filters.custom_start_date}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, custom_start_date: date }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !filters.custom_end_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.custom_end_date ? format(filters.custom_end_date, "dd/MM/yyyy") : "Sampai"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={filters.custom_end_date}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, custom_end_date: date }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+    <>
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle>Data Prospek</CardTitle>
+          <Button onClick={onOpenForm}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Prospek
+          </Button>
+        </CardHeader>
+        
+        <CardContent>
+          {/* Search and Filters */}
+          <div className="space-y-4 mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari prospek..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
-          </div>
-        </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={resetFilters}>
+                  Reset Filter
+                </Button>
+              </div>
+            </div>
 
-        {/* Table */}
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Created Date</TableHead>
-                <TableHead>Tanggal Prospek</TableHead>
-                <TableHead>Nama Prospek</TableHead>
-                <TableHead>No. WhatsApp</TableHead>
-                <TableHead>Sumber Leads</TableHead>
-                <TableHead>Kode Ads</TableHead>
-                <TableHead>Status Leads</TableHead>
-                <TableHead>Nama Faskes</TableHead>
-                <TableHead>Lokasi</TableHead>
-                <TableHead>PIC</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
-                    <div className="flex items-center justify-center">
-                      <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : data.length > 0 ? (
-                data.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(row.created_at), "dd/MM/yyyy HH:mm", { locale: id })}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(row.tanggal_prospek), "dd/MM/yyyy", { locale: id })}
-                    </TableCell>
-                    <TableCell>{row.nama_prospek}</TableCell>
-                    <TableCell>{row.no_whatsapp}</TableCell>
-                    <TableCell>{row.sumber_leads?.sumber_leads || '-'}</TableCell>
-                    <TableCell>{row.kode_ads?.kode || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {row.status_leads?.status_leads || '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{row.nama_faskes}</TableCell>
-                    <TableCell>{row.kota}, {row.provinsi_nama}</TableCell>
-                    <TableCell>{row.pic_leads?.full_name || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onUpdateStatus(row)}
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(row)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {profile?.role === 'admin' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(row.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+            {/* Filter Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Sumber Leads</label>
+                <Select
+                  value={filters.sumber_leads.length > 0 ? 'selected' : ''}
+                  onValueChange={(value) => {
+                    if (value && value !== 'selected') {
+                      setFilters(prev => ({
+                        ...prev,
+                        sumber_leads: prev.sumber_leads.includes(value) 
+                          ? prev.sumber_leads.filter(id => id !== value)
+                          : [...prev.sumber_leads, value]
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih sumber leads" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {masterData.sumberLeads.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.sumber_leads}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Status Leads</label>
+                <Select
+                  value={filters.status_leads.length > 0 ? 'selected' : ''}
+                  onValueChange={(value) => {
+                    if (value && value !== 'selected') {
+                      setFilters(prev => ({
+                        ...prev,
+                        status_leads: prev.status_leads.includes(value) 
+                          ? prev.status_leads.filter(id => id !== value)
+                          : [...prev.status_leads, value]
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih status leads" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {masterData.statusLeads.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.status_leads}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Rentang Waktu</label>
+                <Select
+                  value={filters.date_range}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, date_range: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih rentang waktu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Hari ini</SelectItem>
+                    <SelectItem value="yesterday">Kemarin</SelectItem>
+                    <SelectItem value="this_week">Minggu ini</SelectItem>
+                    <SelectItem value="last_week">Minggu lalu</SelectItem>
+                    <SelectItem value="this_month">Bulan ini</SelectItem>
+                    <SelectItem value="last_month">Bulan kemarin</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filters.date_range === 'custom' && (
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !filters.custom_start_date && "text-muted-foreground"
                         )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filters.custom_start_date ? format(filters.custom_start_date, "dd/MM/yyyy") : "Dari"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filters.custom_start_date}
+                        onSelect={(date) => setFilters(prev => ({ ...prev, custom_start_date: date }))}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !filters.custom_end_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filters.custom_end_date ? format(filters.custom_end_date, "dd/MM/yyyy") : "Sampai"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filters.custom_end_date}
+                        onSelect={(date) => setFilters(prev => ({ ...prev, custom_end_date: date }))}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead>Tanggal Prospek</TableHead>
+                  <TableHead>Nama Prospek</TableHead>
+                  <TableHead>No. WhatsApp</TableHead>
+                  <TableHead>Sumber Leads</TableHead>
+                  <TableHead>Kode Ads</TableHead>
+                  <TableHead>Status Leads</TableHead>
+                  <TableHead>Tanggal Perubahan Status</TableHead>
+                  <TableHead>Nama Faskes</TableHead>
+                  <TableHead>Lokasi</TableHead>
+                  <TableHead>PIC</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="text-center py-8">
+                      <div className="flex items-center justify-center">
+                        <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
-                    Tidak ada data prospek
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : data.length > 0 ? (
+                  data.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-medium">
+                        {format(new Date(row.created_at), "dd/MM/yyyy HH:mm", { locale: id })}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(row.tanggal_prospek), "dd/MM/yyyy", { locale: id })}
+                      </TableCell>
+                      <TableCell>{row.nama_prospek}</TableCell>
+                      <TableCell>{row.no_whatsapp}</TableCell>
+                      <TableCell>{row.sumber_leads?.sumber_leads || '-'}</TableCell>
+                      <TableCell>{row.kode_ads?.kode || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {row.status_leads?.status_leads || '-'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.tanggal_perubahan_status_leads 
+                          ? format(new Date(row.tanggal_perubahan_status_leads), "dd/MM/yyyy HH:mm", { locale: id })
+                          : '-'
+                        }
+                      </TableCell>
+                      <TableCell>{row.nama_faskes}</TableCell>
+                      <TableCell>{row.kota}, {row.provinsi_nama}</TableCell>
+                      <TableCell>{row.pic_leads?.full_name || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleShowDetail(row)}
+                            title="Lihat Detail"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onUpdateStatus(row)}
+                            title="Update Status"
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(row)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {profile?.role === 'admin' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(row.id)}
+                              title="Hapus"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={12} className="text-center py-8">
+                      Tidak ada data prospek
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between space-x-2 py-4">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
-            <Select
-              value={pagination.pageSize.toString()}
-              onValueChange={(value) => setPagination(prev => ({ ...prev, pageSize: parseInt(value), page: 1 }))}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center space-x-6 lg:space-x-8">
-            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-              Page {pagination.page} of {totalPages}
-            </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between space-x-2 py-4">
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                disabled={pagination.page <= 1}
+              <p className="text-sm font-medium">Rows per page</p>
+              <Select
+                value={pagination.pageSize.toString()}
+                onValueChange={(value) => setPagination(prev => ({ ...prev, pageSize: parseInt(value), page: 1 }))}
               >
-                <span className="sr-only">Go to previous page</span>
-                ←
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setPagination(prev => ({ ...prev, page: Math.min(totalPages, prev.page + 1) }))}
-                disabled={pagination.page >= totalPages}
-              >
-                <span className="sr-only">Go to next page</span>
-                →
-              </Button>
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-6 lg:space-x-8">
+              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                Page {pagination.page} of {totalPages}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  disabled={pagination.page <= 1}
+                >
+                  <span className="sr-only">Go to previous page</span>
+                  ←
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(totalPages, prev.page + 1) }))}
+                  disabled={pagination.page >= totalPages}
+                >
+                  <span className="sr-only">Go to next page</span>
+                  →
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Detail Dialog */}
+      <ProspekDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        prospek={selectedDetailProspek}
+      />
+    </>
   );
 };
