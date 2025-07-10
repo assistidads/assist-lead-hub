@@ -56,15 +56,31 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   const testConnection = async () => {
     try {
       console.log('=== TESTING DATABASE CONNECTION ===');
-      const { data: testData, error: testError } = await supabase
+      
+      // Test 1: Simple count query
+      const { data: countData, error: countError, count } = await supabase
         .from('prospek')
-        .select('count(*)', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true });
       
-      console.log('Database test result:', { testData, testError });
+      console.log('Count test result:', { countData, countError, count });
       
-      if (testError) {
-        console.error('Database connection error:', testError);
-        toast.error(`Database connection error: ${testError.message}`);
+      if (countError) {
+        console.error('Count query error:', countError);
+        toast.error(`Count query failed: ${countError.message || 'Unknown error'}`);
+        return false;
+      }
+      
+      // Test 2: Simple select query  
+      const { data: selectData, error: selectError } = await supabase
+        .from('prospek')
+        .select('id, nama_prospek')
+        .limit(1);
+        
+      console.log('Select test result:', { selectData, selectError });
+      
+      if (selectError) {
+        console.error('Select query error:', selectError);
+        toast.error(`Select query failed: ${selectError.message || 'Unknown error'}`);
         return false;
       }
       
@@ -72,6 +88,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       return true;
     } catch (error) {
       console.error('Database test failed:', error);
+      toast.error(`Database test exception: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     }
   };
