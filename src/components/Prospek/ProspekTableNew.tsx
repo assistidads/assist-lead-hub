@@ -51,12 +51,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   const itemsPerPage = 25;
 
-  // Optimized data fetching with better caching
+  // Fetch master data
   const fetchMasterData = async () => {
     try {
       console.log('Fetching master data for table filters...');
       
-      // Use Promise.allSettled to handle errors gracefully
       const results = await Promise.allSettled([
         supabase.from('status_leads').select('*').order('status_leads'),
         supabase.from('sumber_leads').select('*').order('sumber_leads'),
@@ -73,46 +72,57 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         profiles: results[4].status === 'fulfilled' ? results[4].value.data || [] : [],
       };
 
+      console.log('Master data loaded:', newMasterData);
       setMasterData(newMasterData);
-      console.log('Master data loaded successfully');
     } catch (error) {
       console.error('Error fetching master data:', error);
+      toast.error('Gagal mengambil data master');
     }
   };
 
   const fetchData = async (page: number = 1) => {
-    if (!user || !profile) {
-      console.log('User not loaded yet, skipping data fetch');
+    console.log('=== FETCH DATA START ===');
+    console.log('User:', user);
+    console.log('Profile:', profile);
+    
+    if (!user) {
+      console.log('No user found, cannot fetch data');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('User and profile loaded, fetching data...', { user: user.id, role: profile.role });
       console.log('Starting to fetch prospek data...');
-      console.log('User role:', profile.role);
+      console.log('User role:', profile?.role);
+      console.log('User ID:', user.id);
 
       let query = supabase
         .from('prospek')
         .select('*', { count: 'exact' });
 
       // Apply role-based filtering
-      if (profile.role !== 'admin') {
+      if (profile?.role !== 'admin') {
+        console.log('Applying user filter for non-admin');
         query = query.eq('created_by', user.id);
+      } else {
+        console.log('Admin user - no filtering applied');
       }
 
       // Apply search filter
       if (searchTerm) {
+        console.log('Applying search filter:', searchTerm);
         query = query.or(`nama_prospek.ilike.%${searchTerm}%,nama_faskes.ilike.%${searchTerm}%,no_whatsapp.ilike.%${searchTerm}%`);
       }
 
       // Apply status filter
       if (filterStatus) {
+        console.log('Applying status filter:', filterStatus);
         query = query.eq('status_leads_id', filterStatus);
       }
 
       // Apply sumber filter
       if (filterSumber) {
+        console.log('Applying sumber filter:', filterSumber);
         query = query.eq('sumber_leads_id', filterSumber);
       }
 
@@ -120,38 +130,55 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       const from = (page - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      console.log('Executing query with pagination:', { from, to });
+      console.log('Applying pagination:', { from, to, page });
       
       query = query
         .range(from, to)
         .order('created_at', { ascending: false });
 
+      console.log('Executing query...');
       const { data: prospekData, error, count } = await query;
+
+      console.log('Query result:', { 
+        data: prospekData, 
+        error, 
+        count,
+        dataLength: prospekData?.length 
+      });
 
       if (error) {
         console.error('Error fetching prospek data:', error);
         throw error;
       }
 
-      console.log('Prospek data fetched successfully:', prospekData?.length || 0, 'items');
-      
+      console.log('Setting data and counts...');
       setData(prospekData || []);
       setTotalCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / itemsPerPage));
+
+      console.log('Data set successfully:', {
+        dataCount: prospekData?.length || 0,
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / itemsPerPage)
+      });
 
     } catch (error: any) {
       console.error('Error in fetchData:', error);
       toast.error(`Gagal mengambil data prospek: ${error.message}`);
     } finally {
       setLoading(false);
+      console.log('=== FETCH DATA END ===');
     }
   };
 
   // Initial data load
   useEffect(() => {
-    console.log('Component mounted, checking user and profile...');
+    console.log('=== INITIAL LOAD EFFECT ===');
+    console.log('User:', user);
+    console.log('Profile:', profile);
+    
     if (user && profile) {
-      console.log('User and profile available, fetching data...');
+      console.log('User and profile available, starting data fetch...');
       fetchMasterData();
       fetchData(1);
     } else {
@@ -161,6 +188,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   // Refresh when refreshTrigger changes
   useEffect(() => {
+    console.log('=== REFRESH TRIGGER EFFECT ===');
+    console.log('Refresh trigger:', refreshTrigger);
+    console.log('User:', user);
+    console.log('Profile:', profile);
+    
     if (refreshTrigger > 0 && user && profile) {
       console.log('Refresh triggered, reloading data...');
       fetchData(currentPage);
@@ -169,6 +201,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   // Handle filter changes
   useEffect(() => {
+    console.log('=== FILTER CHANGE EFFECT ===');
+    console.log('Search term:', searchTerm);
+    console.log('Filter status:', filterStatus);
+    console.log('Filter sumber:', filterSumber);
+    
     if (user && profile) {
       setCurrentPage(1);
       fetchData(1);
@@ -265,6 +302,13 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     return buttons;
   }, [currentPage, totalPages, loading]);
 
+  console.log('=== RENDER ===');
+  console.log('Loading:', loading);
+  console.log('Data length:', data.length);
+  console.log('Total count:', totalCount);
+  console.log('User:', user);
+  console.log('Profile:', profile);
+
   return (
     <Card>
       <CardHeader>
@@ -330,6 +374,16 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       </CardHeader>
       
       <CardContent>
+        {/* Debug Info */}
+        <div className="mb-4 p-4 bg-gray-100 rounded text-sm">
+          <p><strong>Debug Info:</strong></p>
+          <p>User: {user ? 'Logged in' : 'Not logged in'}</p>
+          <p>Profile: {profile ? `${profile.full_name} (${profile.role})` : 'No profile'}</p>
+          <p>Loading: {loading ? 'Yes' : 'No'}</p>
+          <p>Data count: {data.length}</p>
+          <p>Total count: {totalCount}</p>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -360,7 +414,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                   {data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={13} className="text-center py-8">
-                        Tidak ada data prospek
+                        {user && profile ? 'Tidak ada data prospek' : 'Anda perlu login untuk melihat data'}
                       </TableCell>
                     </TableRow>
                   ) : (
