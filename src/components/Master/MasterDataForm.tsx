@@ -5,16 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
-interface FormField {
+interface Field {
   key: string;
   label: string;
-  type: 'text' | 'email' | 'select' | 'password';
-  options?: { value: string; label: string }[];
-  maxLength?: number;
+  type: 'text' | 'email' | 'password' | 'select';
   required?: boolean;
+  maxLength?: number;
+  options?: { value: string; label: string }[];
 }
 
 interface MasterDataFormProps {
@@ -23,7 +27,7 @@ interface MasterDataFormProps {
   onSuccess: () => void;
   tableName: string;
   title: string;
-  fields: FormField[];
+  fields: Field[];
   editData?: any;
 }
 
@@ -34,190 +38,226 @@ const MasterDataForm: React.FC<MasterDataFormProps> = ({
   tableName,
   title,
   fields,
-  editData
+  editData,
 }) => {
-  const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
-  useEffect(() => {
-    if (editData) {
-      setFormData(editData);
-    } else {
-      const initialData: Record<string, string> = {};
-      fields.forEach(field => {
-        initialData[field.key] = '';
-      });
-      setFormData(initialData);
-    }
-  }, [editData, fields, isOpen]);
-
-  const createNewUser = async (userData: any) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
+  // Create dynamic schema based on fields
+  const createSchema = () => {
+    const schemaFields: any = {};
+    
+    fields.forEach(field => {
+      let fieldSchema;
       
-      if (!session) {
-        throw new Error('No session found');
+      switch (field.type) {
+        case 'email':
+          fieldSchema = z.string();
+          if (field.required) {
+            fieldSchema = fieldSchema.email('Email tidak valid').min(1, `${field.label} harus diisi`);
+          } else {
+            fieldSchema = fieldSchema.email('Email tidak valid').optional().or(z.literal(''));
+          }
+          break;
+        case 'password':
+          fieldSchema = z.string();
+          if (field.required && !editData) {
+            fieldSchema = fieldSchema.min(6, 'Password minimal 6 karakter');
+          } else {
+            fieldSchema = fieldSchema.optional().or(z.literal(''));
+          }
+          break;
+        default:
+          fieldSchema = z.string();
+          if (field.required) {
+            fieldSchema = fieldSchema.min(1, `${field.label} harus diisi`);
+            if (field.maxLength) {
+              fieldSchema = fieldSchema.max(field.maxLength, `${field.label} maksimal ${field.maxLength} karakter`);
+            }
+          } else {
+            fieldSchema = fieldSchema.optional().or(z.literal(''));
+          }
       }
-
-      const response = await fetch('/functions/v1/create-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          email: userData.email,
-          password: userData.password || 'TempPassword123!', // Default password if not provided
-          full_name: userData.full_name,
-          role: userData.role
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create user');
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Error creating user:', error);
-      throw error;
-    }
+      
+      schemaFields[field.key] = fieldSchema;
+    });
+    
+    return z.object(schemaFields);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const form = useForm({
+    resolver: zodResolver(createSchema()),
+    defaultValues: fields.reduce((acc, field) => {
+      acc[field.key] = '';
+      return acc;
+    }, {} as any),
+  });
 
+  useEffect(() => {
+    if (isOpen) {
+      if (editData) {
+        // Set form values for edit mode
+        const formValues: any = {};
+        fields.forEach(field => {
+          formValues[field.key] = editData[field.key] || '';
+        });
+        form.reset(formValues);
+      } else {
+        // Reset form for add mode
+        const defaultValues: any = {};
+        fields.forEach(field => {
+          defaultValues[field.key] = '';
+        });
+        form.reset(defaultValues);
+      }
+    }
+  }, [isOpen, editData, form, fields]);
+
+  const onSubmit = async (values: any) => {
+    setLoading(true);
+    console.log(`Submitting ${tableName} form with values:`, values);
+    
     try {
-      // Special handling for profiles table (users)
+      // Handle special cases for profiles table
       if (tableName === 'profiles') {
         if (editData) {
           // Update existing profile
-          const { error } = await supabase
+          const updateData: any = {
+            full_name: values.full_name,
+            email: values.email,
+            role: values.role,
+          };
+          
+          const { data, error } = await supabase
             .from('profiles')
-            .update({
-              full_name: formData.full_name,
-              email: formData.email,
-              role: formData.role
-            })
-            .eq('id', editData.id);
-
-          if (error) {
-            console.error('Error updating profile:', error);
-            toast({
-              title: "Error",
-              description: "Gagal memperbarui data user: " + error.message,
-              variant: "destructive"
-            });
-            return;
+            .update(updateData)
+            .eq('id', editData.id)
+            .select();
+          
+          console.log('Profile update result:', { data, error });
+          if (error) throw error;
+          
+          // Update password if provided
+          if (values.password) {
+            const { error: passwordError } = await supabase.auth.admin.updateUserById(
+              editData.id,
+              { password: values.password }
+            );
+            if (passwordError) {
+              console.warn('Password update failed:', passwordError);
+              toast.error('Profil diperbarui tapi password gagal diubah');
+            }
           }
+          
+          toast.success(`Data ${title} berhasil diperbarui!`);
         } else {
-          // Create new user through edge function
-          await createNewUser(formData);
+          // Create new profile with auth user
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: values.email,
+            password: values.password,
+            user_metadata: {
+              full_name: values.full_name,
+              role: values.role,
+            }
+          });
+          
+          console.log('Auth user creation result:', { data: authData, error: authError });
+          if (authError) throw authError;
+          
+          toast.success(`Data ${title} berhasil ditambahkan!`);
         }
       } else {
         // Handle other tables normally
-        let result;
         if (editData) {
-          result = await supabase
-            .from(tableName as any)
-            .update(formData)
-            .eq('id', editData.id);
+          const { data, error } = await supabase
+            .from(tableName)
+            .update(values)
+            .eq('id', editData.id)
+            .select();
+          
+          console.log(`${tableName} update result:`, { data, error });
+          if (error) throw error;
+          toast.success(`Data ${title} berhasil diperbarui!`);
         } else {
-          result = await supabase
-            .from(tableName as any)
-            .insert([formData]);
-        }
-
-        if (result.error) {
-          console.error('Error saving data:', result.error);
-          toast({
-            title: "Error",
-            description: "Gagal menyimpan data: " + result.error.message,
-            variant: "destructive"
-          });
-          return;
+          const { data, error } = await supabase
+            .from(tableName)
+            .insert([values])
+            .select();
+          
+          console.log(`${tableName} insert result:`, { data, error });
+          if (error) throw error;
+          toast.success(`Data ${title} berhasil ditambahkan!`);
         }
       }
 
-      toast({
-        title: "Berhasil",
-        description: `Data berhasil ${editData ? 'diperbarui' : 'ditambahkan'}`
-      });
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan data",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      console.error(`Error saving ${tableName}:`, error);
+      toast.error(`Gagal menyimpan data ${title}: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (key: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {editData ? `Edit ${title}` : `Tambah ${title}`}
+            {editData ? `Edit ${title}` : `Tambah ${title} Baru`}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {fields.map((field) => (
-            <div key={field.key} className="space-y-2">
-              <Label htmlFor={field.key}>{field.label}</Label>
-              {field.type === 'select' ? (
-                <Select
-                  value={formData[field.key] || ''}
-                  onValueChange={(value) => handleInputChange(field.key, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Pilih ${field.label}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {field.options?.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id={field.key}
-                  type={field.type}
-                  value={formData[field.key] || ''}
-                  onChange={(e) => handleInputChange(field.key, e.target.value)}
-                  maxLength={field.maxLength}
-                  required={field.required}
-                  placeholder={field.type === 'password' ? 'Kosongkan jika tidak ingin mengubah password' : ''}
-                />
-              )}
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
+            {fields.map((field) => (
+              <FormField
+                key={field.key}
+                control={form.control}
+                name={field.key}
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>{field.label}</FormLabel>
+                    <FormControl>
+                      {field.type === 'select' ? (
+                        <Select onValueChange={formField.onChange} value={formField.value}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={`Pilih ${field.label.toLowerCase()}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {field.options?.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type={field.type}
+                          placeholder={field.label}
+                          maxLength={field.maxLength}
+                          autoComplete="off"
+                          {...formField}
+                        />
+                      )}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Menyimpan...' : (editData ? 'Perbarui' : 'Simpan')}
+              </Button>
             </div>
-          ))}
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Menyimpan...' : 'Simpan'}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

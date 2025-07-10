@@ -71,6 +71,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   const [showAdsFields, setShowAdsFields] = useState(false);
   const [selectedStatusLeads, setSelectedStatusLeads] = useState<string>('');
   const [showBukanLeadsFields, setShowBukanLeadsFields] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -115,6 +116,10 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
           keterangan_bukan_leads: prospek.keterangan_bukan_leads || '',
           pic_leads_id: prospek.pic_leads_id || '',
         });
+        
+        // Set conditional fields
+        setSelectedSumberLeads(prospek.sumber_leads_id || '');
+        setSelectedStatusLeads(prospek.status_leads_id || '');
       } else {
         form.reset({
           tanggal_prospek: new Date(),
@@ -126,6 +131,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
 
   const fetchMasterData = async () => {
     try {
+      console.log('Fetching master data...');
+      
       const [
         sumberLeadsRes,
         kodeAdsRes,
@@ -144,6 +151,25 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         supabase.from('profiles').select('id, full_name, role').order('full_name')
       ]);
 
+      console.log('Master data responses:', {
+        sumberLeads: sumberLeadsRes,
+        kodeAds: kodeAdsRes,
+        layananAssist: layananAssistRes,
+        alasanBukanLeads: alasanBukanLeadsRes,
+        statusLeads: statusLeadsRes,
+        tipeFaskes: tipeFaskesRes,
+        profiles: profilesRes
+      });
+
+      // Check for errors in any of the requests
+      if (sumberLeadsRes.error) console.error('Sumber leads error:', sumberLeadsRes.error);
+      if (kodeAdsRes.error) console.error('Kode ads error:', kodeAdsRes.error);
+      if (layananAssistRes.error) console.error('Layanan assist error:', layananAssistRes.error);
+      if (alasanBukanLeadsRes.error) console.error('Alasan bukan leads error:', alasanBukanLeadsRes.error);
+      if (statusLeadsRes.error) console.error('Status leads error:', statusLeadsRes.error);
+      if (tipeFaskesRes.error) console.error('Tipe faskes error:', tipeFaskesRes.error);
+      if (profilesRes.error) console.error('Profiles error:', profilesRes.error);
+
       setMasterData({
         sumberLeads: sumberLeadsRes.data || [],
         kodeAds: kodeAdsRes.data || [],
@@ -155,6 +181,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
       });
     } catch (error) {
       console.error('Error fetching master data:', error);
+      toast.error('Gagal mengambil data master');
     }
   };
 
@@ -197,7 +224,10 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setLoading(true);
     try {
+      console.log('Submitting form with values:', values);
+      
       const prospekData = {
         tanggal_prospek: format(values.tanggal_prospek, 'yyyy-MM-dd'),
         nama_prospek: values.nama_prospek,
@@ -217,19 +247,25 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         created_by: user?.id,
       };
 
+      console.log('Prepared prospek data:', prospekData);
+
       if (prospek) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('prospek')
           .update(prospekData)
-          .eq('id', prospek.id);
+          .eq('id', prospek.id)
+          .select();
         
+        console.log('Update result:', { data, error });
         if (error) throw error;
         toast.success('Prospek berhasil diperbarui!');
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('prospek')
-          .insert([prospekData]);
+          .insert([prospekData])
+          .select();
         
+        console.log('Insert result:', { data, error });
         if (error) throw error;
         toast.success('Prospek berhasil ditambahkan!');
       }
@@ -239,6 +275,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
     } catch (error: any) {
       console.error('Error saving prospek:', error);
       toast.error(`Gagal menyimpan prospek: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -328,7 +366,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sumber Leads</FormLabel>
-                    <Select onValueChange={handleSumberLeadsChange} defaultValue={field.value}>
+                    <Select onValueChange={handleSumberLeadsChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih sumber leads" />
@@ -355,7 +393,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Kode Ads</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih kode ads" />
@@ -380,7 +418,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>ID Ads</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih ID ads" />
@@ -407,7 +445,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Leads</FormLabel>
-                    <Select onValueChange={handleStatusLeadsChange} defaultValue={field.value}>
+                    <Select onValueChange={handleStatusLeadsChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status leads" />
@@ -434,7 +472,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Bukan Leads</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih alasan bukan leads" />
@@ -475,7 +513,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Layanan Assist</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih layanan assist" />
@@ -514,7 +552,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipe Faskes</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih tipe faskes" />
@@ -539,7 +577,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provinsi</FormLabel>
-                    <Select onValueChange={handleProvinceChange} defaultValue={field.value}>
+                    <Select onValueChange={handleProvinceChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih provinsi" />
@@ -564,7 +602,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Kota/Kabupaten</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih kota/kabupaten" />
@@ -590,7 +628,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>PIC Leads</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih PIC" />
@@ -615,8 +653,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Batal
               </Button>
-              <Button type="submit">
-                {prospek ? 'Perbarui' : 'Simpan'} Prospek
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Menyimpan...' : (prospek ? 'Perbarui' : 'Simpan')} Prospek
               </Button>
             </div>
           </form>

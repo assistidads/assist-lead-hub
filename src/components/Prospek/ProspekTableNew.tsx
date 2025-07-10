@@ -65,17 +65,34 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [pagination.page, pagination.pageSize, searchQuery, filters, refreshTrigger]);
+    if (user) {
+      fetchData();
+    }
+  }, [pagination.page, pagination.pageSize, searchQuery, filters, refreshTrigger, user]);
 
   const fetchMasterData = async () => {
     try {
+      console.log('Fetching master data for table filters...');
+      
       const [sumberRes, kodeRes, layananRes, statusRes] = await Promise.all([
         supabase.from('sumber_leads').select('*').order('sumber_leads'),
         supabase.from('kode_ads').select('*').order('kode'),
         supabase.from('layanan_assist').select('*').order('layanan'),
         supabase.from('status_leads').select('*').order('status_leads')
       ]);
+
+      console.log('Master data for filters:', {
+        sumberLeads: sumberRes,
+        kodeAds: kodeRes,
+        layananAssist: layananRes,
+        statusLeads: statusRes
+      });
+
+      // Check for errors
+      if (sumberRes.error) console.error('Sumber leads error:', sumberRes.error);
+      if (kodeRes.error) console.error('Kode ads error:', kodeRes.error);
+      if (layananRes.error) console.error('Layanan assist error:', layananRes.error);
+      if (statusRes.error) console.error('Status leads error:', statusRes.error);
 
       setMasterData({
         sumberLeads: sumberRes.data || [],
@@ -84,7 +101,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         statusLeads: statusRes.data || [],
       });
     } catch (error) {
-      console.error('Error fetching master data:', error);
+      console.error('Error fetching master data for filters:', error);
     }
   };
 
@@ -145,9 +162,14 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   };
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping data fetch');
+      return;
+    }
     
+    console.log('Starting to fetch prospek data...');
     setLoading(true);
+    
     try {
       let query = supabase
         .from('prospek')
@@ -161,6 +183,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
           tipe_faskes:tipe_faskes_id(tipe_faskes),
           pic_leads:pic_leads_id(full_name)
         `, { count: 'exact' });
+
+      console.log('User role:', profile?.role);
 
       // Role-based filtering
       if (profile?.role !== 'admin') {
@@ -198,14 +222,19 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       const from = (pagination.page - 1) * pagination.pageSize;
       const to = from + pagination.pageSize - 1;
       
+      console.log('Executing query with pagination:', { from, to });
+      
       const { data: prospekData, error, count } = await query
         .order('created_at', { ascending: false })
         .range(from, to);
 
+      console.log('Query result:', { data: prospekData, error, count });
+
       if (error) {
         console.error('Error fetching prospek data:', error);
-        toast.error('Gagal mengambil data prospek');
+        toast.error(`Gagal mengambil data prospek: ${error.message}`);
       } else {
+        console.log('Successfully fetched prospek data:', prospekData?.length, 'records');
         setData(prospekData || []);
         setPagination(prev => ({ ...prev, total: count || 0 }));
       }
@@ -250,6 +279,16 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   };
 
   const totalPages = Math.ceil(pagination.total / pagination.pageSize);
+
+  if (!user) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center p-8">
+          <p>Silakan login untuk melihat data prospek</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full">
