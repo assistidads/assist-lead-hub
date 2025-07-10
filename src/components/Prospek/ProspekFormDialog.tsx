@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,16 +97,17 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
     if (open) {
       fetchMasterData();
       if (prospek) {
+        console.log('Editing prospek:', prospek);
         // Set form values for edit mode
-        form.reset({
+        const formValues = {
           tanggal_prospek: new Date(prospek.tanggal_prospek),
-          nama_prospek: prospek.nama_prospek,
-          no_whatsapp: prospek.no_whatsapp,
+          nama_prospek: prospek.nama_prospek || '',
+          no_whatsapp: prospek.no_whatsapp || '',
           status_leads_id: prospek.status_leads_id || '',
-          nama_faskes: prospek.nama_faskes,
+          nama_faskes: prospek.nama_faskes || '',
           tipe_faskes_id: prospek.tipe_faskes_id || '',
-          kota: prospek.kota,
-          provinsi_nama: prospek.provinsi_nama,
+          kota: prospek.kota || '',
+          provinsi_nama: prospek.provinsi_nama || '',
           sumber_leads_id: prospek.sumber_leads_id || '',
           kode_ads_id: prospek.kode_ads_id || '',
           id_ads: prospek.id_ads || '',
@@ -115,19 +115,64 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
           alasan_bukan_leads_id: prospek.alasan_bukan_leads_id || '',
           keterangan_bukan_leads: prospek.keterangan_bukan_leads || '',
           pic_leads_id: prospek.pic_leads_id || '',
-        });
+        };
+        
+        form.reset(formValues);
         
         // Set conditional fields
         setSelectedSumberLeads(prospek.sumber_leads_id || '');
         setSelectedStatusLeads(prospek.status_leads_id || '');
+        
+        // Check if we need to show ads fields
+        if (prospek.sumber_leads_id) {
+          setTimeout(() => {
+            const selectedSource = masterData.sumberLeads.find(s => s.id === prospek.sumber_leads_id);
+            const containsAds = selectedSource?.sumber_leads.toLowerCase().includes('ads');
+            setShowAdsFields(containsAds);
+          }, 100);
+        }
+        
+        // Check if we need to show bukan leads fields
+        if (prospek.status_leads_id) {
+          setTimeout(() => {
+            const selectedStatus = masterData.statusLeads.find(s => s.id === prospek.status_leads_id);
+            const isBukanLeads = selectedStatus?.status_leads.toLowerCase().includes('bukan leads');
+            setShowBukanLeadsFields(isBukanLeads);
+          }, 100);
+        }
+        
+        // Load cities for the selected province
+        if (prospek.provinsi_nama) {
+          const province = provinces.find(p => p.name === prospek.provinsi_nama);
+          if (province) {
+            fetchCitiesByProvince(province.id);
+          }
+        }
       } else {
         form.reset({
           tanggal_prospek: new Date(),
+          nama_prospek: '',
+          no_whatsapp: '',
+          status_leads_id: '',
+          nama_faskes: '',
+          tipe_faskes_id: '',
+          kota: '',
+          provinsi_nama: '',
+          sumber_leads_id: '',
+          kode_ads_id: '',
+          id_ads: '',
+          layanan_assist_id: '',
+          alasan_bukan_leads_id: '',
+          keterangan_bukan_leads: '',
           pic_leads_id: profile?.role === 'admin' ? '' : user?.id || '',
         });
+        setSelectedSumberLeads('');
+        setSelectedStatusLeads('');
+        setShowAdsFields(false);
+        setShowBukanLeadsFields(false);
       }
     }
-  }, [open, prospek, form, profile, user]);
+  }, [open, prospek, form, profile, user, provinces, masterData.sumberLeads, masterData.statusLeads]);
 
   const fetchMasterData = async () => {
     try {

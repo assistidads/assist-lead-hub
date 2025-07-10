@@ -1,16 +1,25 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import MasterDataTable from '@/components/Master/MasterDataTable';
-import MasterDataForm from '@/components/Master/MasterDataForm';
+import { MasterDataTable } from '@/components/Master/MasterDataTable';
+import { MasterDataForm } from '@/components/Master/MasterDataForm';
 
 export default function Master() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeForm, setActiveForm] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  if (user?.role !== 'admin') {
+  if (!user || !profile) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-lg font-medium">Loading...</p>
+      </div>
+    );
+  }
+
+  if (profile.role !== 'admin') {
     return (
       <div className="text-center p-8">
         <p className="text-lg font-medium">Akses Ditolak</p>
@@ -44,20 +53,10 @@ export default function Master() {
         { key: 'role', label: 'Role' }
       ],
       fields: [
-        { key: 'full_name', label: 'Nama Admin', type: 'text' as const, required: true },
-        { key: 'email', label: 'Email', type: 'email' as const, required: true },
-        { key: 'password', label: 'Password (Opsional untuk edit)', type: 'password' as const, required: false },
-        { 
-          key: 'role', 
-          label: 'Role', 
-          type: 'select' as const, 
-          options: [
-            { value: 'admin', label: 'Admin' },
-            { value: 'cs_support', label: 'CS Support' },
-            { value: 'advertiser', label: 'Advertiser' }
-          ],
-          required: true 
-        }
+        { key: 'full_name', label: 'Nama Admin', required: true },
+        { key: 'email', label: 'Email', required: true },
+        { key: 'password', label: 'Password (Opsional untuk edit)', required: false },
+        { key: 'role', label: 'Role', required: true }
       ]
     },
     {
@@ -68,7 +67,7 @@ export default function Master() {
         { key: 'layanan', label: 'Layanan' }
       ],
       fields: [
-        { key: 'layanan', label: 'Layanan', type: 'text' as const, required: true }
+        { key: 'layanan', label: 'Layanan', required: true }
       ]
     },
     {
@@ -79,7 +78,7 @@ export default function Master() {
         { key: 'kode', label: 'Kode Ads' }
       ],
       fields: [
-        { key: 'kode', label: 'Kode Ads', type: 'text' as const, maxLength: 4, required: true }
+        { key: 'kode', label: 'Kode Ads', required: true }
       ]
     },
     {
@@ -90,7 +89,7 @@ export default function Master() {
         { key: 'sumber_leads', label: 'Sumber Leads' }
       ],
       fields: [
-        { key: 'sumber_leads', label: 'Sumber Leads', type: 'text' as const, required: true }
+        { key: 'sumber_leads', label: 'Sumber Leads', required: true }
       ]
     },
     {
@@ -101,7 +100,7 @@ export default function Master() {
         { key: 'tipe_faskes', label: 'Tipe Faskes' }
       ],
       fields: [
-        { key: 'tipe_faskes', label: 'Tipe Faskes', type: 'text' as const, required: true }
+        { key: 'tipe_faskes', label: 'Tipe Faskes', required: true }
       ]
     },
     {
@@ -112,7 +111,7 @@ export default function Master() {
         { key: 'status_leads', label: 'Status Leads' }
       ],
       fields: [
-        { key: 'status_leads', label: 'Status Leads', type: 'text' as const, required: true }
+        { key: 'status_leads', label: 'Status Leads', required: true }
       ]
     },
     {
@@ -123,7 +122,7 @@ export default function Master() {
         { key: 'bukan_leads', label: 'Bukan Leads' }
       ],
       fields: [
-        { key: 'bukan_leads', label: 'Bukan Leads', type: 'text' as const, required: true }
+        { key: 'bukan_leads', label: 'Bukan Leads', required: true }
       ]
     }
   ];
@@ -149,22 +148,21 @@ export default function Master() {
         {masterDataConfig.map((config) => (
           <TabsContent key={config.key} value={config.key} className="space-y-4">
             <MasterDataTable
-              tableName={config.tableName}
+              table={config.tableName}
               title={config.title}
-              columns={config.columns}
               onAdd={() => handleOpenForm(config.key)}
               onEdit={(data) => handleOpenForm(config.key, data)}
               refreshTrigger={refreshTrigger}
             />
 
             <MasterDataForm
-              isOpen={activeForm === config.key}
-              onClose={handleCloseForm}
-              onSuccess={handleFormSuccess}
-              tableName={config.tableName}
+              open={activeForm === config.key}
+              onOpenChange={handleCloseForm}
+              table={config.tableName}
               title={config.title}
               fields={config.fields}
               editData={editData}
+              onSuccess={handleFormSuccess}
             />
           </TabsContent>
         ))}

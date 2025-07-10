@@ -69,7 +69,10 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   useEffect(() => {
     if (user && profile) {
+      console.log('User and profile loaded, fetching data...', { user: user.id, role: profile.role });
       fetchData();
+    } else {
+      console.log('User or profile not loaded yet:', { user: !!user, profile: !!profile });
     }
   }, [pagination.page, pagination.pageSize, searchQuery, filters, refreshTrigger, user, profile]);
 
@@ -292,7 +295,10 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     return (
       <Card className="w-full">
         <CardContent className="flex items-center justify-center p-8">
-          <p>Silakan login untuk melihat data prospek</p>
+          <div className="flex items-center">
+            <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+            <p>Loading user data...</p>
+          </div>
         </CardContent>
       </Card>
     );
