@@ -11,14 +11,53 @@ interface ProspekDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prospek: any | null;
+  masterData?: {
+    statusLeads: any[];
+    sumberLeads: any[];
+    tipeFaskes: any[];
+    layananAssist: any[];
+    profiles: any[];
+  };
 }
 
 export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
   open,
   onOpenChange,
   prospek,
+  masterData,
 }) => {
   if (!prospek) return null;
+
+  // Helper functions to get display values using masterData if available
+  const getStatusLeads = (statusId: string) => {
+    if (!masterData) return prospek.status_leads?.status_leads || '-';
+    const status = masterData.statusLeads.find(s => s.id === statusId);
+    return status ? status.status_leads : '-';
+  };
+
+  const getSumberLeads = (sumberId: string) => {
+    if (!masterData) return prospek.sumber_leads?.sumber_leads || '-';
+    const sumber = masterData.sumberLeads.find(s => s.id === sumberId);
+    return sumber ? sumber.sumber_leads : '-';
+  };
+
+  const getTipeFaskes = (tipeId: string) => {
+    if (!masterData) return prospek.tipe_faskes?.tipe_faskes || '-';
+    const tipe = masterData.tipeFaskes.find(t => t.id === tipeId);
+    return tipe ? tipe.tipe_faskes : '-';
+  };
+
+  const getLayananAssist = (layananId: string) => {
+    if (!masterData) return prospek.layanan_assist?.layanan || '-';
+    const layanan = masterData.layananAssist.find(l => l.id === layananId);
+    return layanan ? layanan.layanan : '-';
+  };
+
+  const getPicName = (picId: string) => {
+    if (!masterData) return prospek.pic_leads?.full_name || '-';
+    const pic = masterData.profiles.find(p => p.id === picId);
+    return pic ? pic.full_name : '-';
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,12 +102,12 @@ export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Sumber Leads</label>
-                <p className="text-sm">{prospek.sumber_leads?.sumber_leads || '-'}</p>
+                <p className="text-sm">{getSumberLeads(prospek.sumber_leads_id || '')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Status Leads</label>
                 <Badge variant="secondary" className="mt-1">
-                  {prospek.status_leads?.status_leads || '-'}
+                  {getStatusLeads(prospek.status_leads_id || '')}
                 </Badge>
               </div>
               {prospek.tanggal_perubahan_status_leads && (
@@ -81,7 +120,7 @@ export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
               )}
               <div>
                 <label className="text-sm font-medium text-gray-500">PIC Leads</label>
-                <p className="text-sm">{prospek.pic_leads?.full_name || '-'}</p>
+                <p className="text-sm">{getPicName(prospek.pic_leads_id || '')}</p>
               </div>
             </div>
           </div>
@@ -122,7 +161,7 @@ export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Tipe Faskes</label>
-                <p className="text-sm">{prospek.tipe_faskes?.tipe_faskes || '-'}</p>
+                <p className="text-sm">{getTipeFaskes(prospek.tipe_faskes_id || '')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Kota</label>
@@ -143,7 +182,7 @@ export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Layanan Assist</label>
-                <p className="text-sm">{prospek.layanan_assist?.layanan || '-'}</p>
+                <p className="text-sm">{getLayananAssist(prospek.layanan_assist_id || '')}</p>
               </div>
             </div>
           </div>

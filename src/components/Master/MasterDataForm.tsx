@@ -17,6 +17,8 @@ interface MasterDataFormProps {
   onSuccess: () => void;
 }
 
+type TableNames = 'sumber_leads' | 'kode_ads' | 'layanan_assist' | 'status_leads' | 'alasan_bukan_leads' | 'tipe_faskes' | 'profiles';
+
 export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   open,
   onOpenChange,
@@ -71,7 +73,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
 
       if (editData) {
         const { data, error } = await supabase
-          .from(table)
+          .from(table as TableNames)
           .update(dataToSubmit)
           .eq('id', editData.id)
           .select();
@@ -81,7 +83,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
         toast.success(`${title} berhasil diperbarui!`);
       } else {
         const { data, error } = await supabase
-          .from(table)
+          .from(table as TableNames)
           .insert([dataToSubmit])
           .select();
         
