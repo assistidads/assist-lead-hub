@@ -11,7 +11,7 @@ interface ProspekDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prospek: any | null;
-  masterData?: {
+  masterData: {
     statusLeads: any[];
     sumberLeads: any[];
     tipeFaskes: any[];
@@ -28,33 +28,28 @@ export const ProspekDetailDialog: React.FC<ProspekDetailDialogProps> = ({
 }) => {
   if (!prospek) return null;
 
-  // Helper functions to get display values using masterData if available
+  // Helper functions to get display values using masterData
   const getStatusLeads = (statusId: string) => {
-    if (!masterData) return prospek.status_leads?.status_leads || '-';
     const status = masterData.statusLeads.find(s => s.id === statusId);
     return status ? status.status_leads : '-';
   };
 
   const getSumberLeads = (sumberId: string) => {
-    if (!masterData) return prospek.sumber_leads?.sumber_leads || '-';
     const sumber = masterData.sumberLeads.find(s => s.id === sumberId);
     return sumber ? sumber.sumber_leads : '-';
   };
 
   const getTipeFaskes = (tipeId: string) => {
-    if (!masterData) return prospek.tipe_faskes?.tipe_faskes || '-';
     const tipe = masterData.tipeFaskes.find(t => t.id === tipeId);
     return tipe ? tipe.tipe_faskes : '-';
   };
 
   const getLayananAssist = (layananId: string) => {
-    if (!masterData) return prospek.layanan_assist?.layanan || '-';
     const layanan = masterData.layananAssist.find(l => l.id === layananId);
     return layanan ? layanan.layanan : '-';
   };
 
   const getPicName = (picId: string) => {
-    if (!masterData) return prospek.pic_leads?.full_name || '-';
     const pic = masterData.profiles.find(p => p.id === picId);
     return pic ? pic.full_name : '-';
   };

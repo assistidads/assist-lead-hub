@@ -70,7 +70,8 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
       const dataToSubmit = { ...formData };
 
       if (editData) {
-        const { data, error } = await supabase
+        // Use any type to bypass TypeScript checking for dynamic table names
+        const { data, error } = await (supabase as any)
           .from(table)
           .update(dataToSubmit)
           .eq('id', editData.id)
@@ -80,7 +81,8 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
         if (error) throw error;
         toast.success(`${title} berhasil diperbarui!`);
       } else {
-        const { data, error } = await supabase
+        // Use any type to bypass TypeScript checking for dynamic table names
+        const { data, error } = await (supabase as any)
           .from(table)
           .insert(dataToSubmit)
           .select();
