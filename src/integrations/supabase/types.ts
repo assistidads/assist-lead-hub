@@ -110,6 +110,8 @@ export type Database = {
           created_at: string | null
           created_by: string
           id: string
+          id_ads: string | null
+          keterangan_bukan_leads: string | null
           kode_ads_id: string | null
           kota: string
           layanan_assist_id: string | null
@@ -120,6 +122,7 @@ export type Database = {
           provinsi_nama: string
           status_leads_id: string | null
           sumber_leads_id: string | null
+          tanggal_perubahan_status_leads: string | null
           tanggal_prospek: string
           tipe_faskes_id: string | null
           updated_at: string | null
@@ -129,6 +132,8 @@ export type Database = {
           created_at?: string | null
           created_by: string
           id?: string
+          id_ads?: string | null
+          keterangan_bukan_leads?: string | null
           kode_ads_id?: string | null
           kota: string
           layanan_assist_id?: string | null
@@ -139,6 +144,7 @@ export type Database = {
           provinsi_nama: string
           status_leads_id?: string | null
           sumber_leads_id?: string | null
+          tanggal_perubahan_status_leads?: string | null
           tanggal_prospek: string
           tipe_faskes_id?: string | null
           updated_at?: string | null
@@ -148,6 +154,8 @@ export type Database = {
           created_at?: string | null
           created_by?: string
           id?: string
+          id_ads?: string | null
+          keterangan_bukan_leads?: string | null
           kode_ads_id?: string | null
           kota?: string
           layanan_assist_id?: string | null
@@ -158,6 +166,7 @@ export type Database = {
           provinsi_nama?: string
           status_leads_id?: string | null
           sumber_leads_id?: string | null
+          tanggal_perubahan_status_leads?: string | null
           tanggal_prospek?: string
           tipe_faskes_id?: string | null
           updated_at?: string | null

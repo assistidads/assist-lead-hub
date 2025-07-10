@@ -1,48 +1,38 @@
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Plus, Search, Filter } from 'lucide-react';
-import { ProspekTable } from '@/components/Prospek/ProspekTable';
-import { ProspekForm } from '@/components/Prospek/ProspekForm';
+import { ProspekTableNew } from '@/components/Prospek/ProspekTableNew';
+import { ProspekFormDialog } from '@/components/Prospek/ProspekFormDialog';
+import { UpdateStatusDialog } from '@/components/Prospek/UpdateStatusDialog';
 import type { Prospek } from '@/types/database';
-import { useToast } from '@/hooks/use-toast';
 
 export default function Prospek() {
-  const [searchQuery, setSearchQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [selectedProspek, setSelectedProspek] = useState<Prospek | null>(null);
-  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  const { toast } = useToast();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleAddProspek = () => {
     setSelectedProspek(null);
-    setFormMode('create');
     setIsFormOpen(true);
   };
 
   const handleEditProspek = (prospek: Prospek) => {
     setSelectedProspek(prospek);
-    setFormMode('edit');
     setIsFormOpen(true);
   };
 
-  const handleDeleteProspek = (id: string) => {
-    // Implementasi delete - untuk saat ini hanya menampilkan toast
-    console.log('Delete prospek:', id);
-    toast({
-      title: "Prospek dihapus",
-      description: "Data prospek berhasil dihapus",
-    });
+  const handleUpdateStatus = (prospek: Prospek) => {
+    setSelectedProspek(prospek);
+    setIsStatusDialogOpen(true);
   };
 
-  const handleFormSubmit = (data: any) => {
-    // Implementasi submit form - untuk saat ini hanya menampilkan toast
-    console.log('Form submitted:', data);
-    toast({
-      title: formMode === 'create' ? "Prospek ditambahkan" : "Prospek diperbarui",
-      description: `Data prospek berhasil ${formMode === 'create' ? 'ditambahkan' : 'diperbarui'}`,
-    });
+  const handleDeleteProspek = (id: string) => {
+    // Delete logic is handled in the table component
+    console.log('Delete prospek:', id);
+  };
+
+  const handleSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -54,35 +44,31 @@ export default function Prospek() {
             Kelola data prospek dan leads Anda
           </p>
         </div>
-        <Button onClick={handleAddProspek}>
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah Prospek
-        </Button>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari prospek..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filter
-        </Button>
       </div>
 
       {/* Prospek Table */}
-      <ProspekTable
-        searchQuery={searchQuery}
+      <ProspekTableNew
         onEdit={handleEditProspek}
         onDelete={handleDeleteProspek}
         onOpenForm={handleAddProspek}
+        onUpdateStatus={handleUpdateStatus}
+        refreshTrigger={refreshTrigger}
+      />
+
+      {/* Form Dialog */}
+      <ProspekFormDialog
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        prospek={selectedProspek}
+        onSuccess={handleSuccess}
+      />
+
+      {/* Update Status Dialog */}
+      <UpdateStatusDialog
+        open={isStatusDialogOpen}
+        onOpenChange={setIsStatusDialogOpen}
+        prospek={selectedProspek}
+        onSuccess={handleSuccess}
       />
     </div>
   );
