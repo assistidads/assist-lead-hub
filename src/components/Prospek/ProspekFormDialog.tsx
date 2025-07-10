@@ -159,8 +159,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         if (prospek) {
           console.log('Setting form values for edit mode:', prospek);
           
-          // Reset form with prospek data
-          const formData = {
+          // Set form values for editing
+          const formValues = {
             tanggal_prospek: new Date(prospek.tanggal_prospek),
             nama_prospek: prospek.nama_prospek || '',
             no_whatsapp: prospek.no_whatsapp || '',
@@ -178,23 +178,28 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
             pic_leads_id: prospek.pic_leads_id || '',
           };
           
-          form.reset(formData);
+          // Reset form with new values
+          form.reset(formValues);
           
-          // Set state variables
+          // Set state variables for conditional fields
           setSelectedSumberLeads(prospek.sumber_leads_id || '');
           setSelectedStatusLeads(prospek.status_leads_id || '');
           
-          // Handle conditional fields
+          // Handle conditional field visibility
           if (prospek.sumber_leads_id) {
             const selectedSource = masterDataResult.sumberLeads.find(s => s.id === prospek.sumber_leads_id);
-            const containsAds = selectedSource?.sumber_leads.toLowerCase().includes('ads');
-            setShowAdsFields(containsAds);
+            if (selectedSource) {
+              const containsAds = selectedSource.sumber_leads.toLowerCase().includes('ads');
+              setShowAdsFields(containsAds);
+            }
           }
           
           if (prospek.status_leads_id) {
             const selectedStatus = masterDataResult.statusLeads.find(s => s.id === prospek.status_leads_id);
-            const isBukanLeads = selectedStatus?.status_leads.toLowerCase().includes('bukan leads');
-            setShowBukanLeadsFields(isBukanLeads);
+            if (selectedStatus) {
+              const isBukanLeads = selectedStatus.status_leads.toLowerCase().includes('bukan leads');
+              setShowBukanLeadsFields(isBukanLeads);
+            }
           }
           
           // Load cities for the selected province
@@ -414,7 +419,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sumber Leads</FormLabel>
-                    <Select onValueChange={handleSumberLeadsChange} value={field.value}>
+                    <Select onValueChange={handleSumberLeadsChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih sumber leads" />
@@ -493,7 +498,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Leads</FormLabel>
-                    <Select onValueChange={handleStatusLeadsChange} value={field.value}>
+                    <Select onValueChange={handleStatusLeadsChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status leads" />
@@ -561,7 +566,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Layanan Assist</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih layanan assist" />
@@ -600,7 +605,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipe Faskes</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih tipe faskes" />
@@ -625,7 +630,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provinsi</FormLabel>
-                    <Select onValueChange={handleProvinceChange} value={field.value}>
+                    <Select onValueChange={handleProvinceChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih provinsi" />
@@ -650,7 +655,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Kota/Kabupaten</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih kota/kabupaten" />
