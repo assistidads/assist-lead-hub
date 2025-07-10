@@ -396,12 +396,12 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
               />
             </div>
           </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value === "all" ? "" : value)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Semua Status</SelectItem>
+              <SelectItem value="all">Semua Status</SelectItem>
               {masterData.statusLeads.map((status) => (
                 <SelectItem key={status.id} value={status.id}>
                   {status.status_leads}
@@ -409,12 +409,12 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterSumber} onValueChange={setFilterSumber}>
+          <Select value={filterSumber} onValueChange={(value) => setFilterSumber(value === "all" ? "" : value)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder="Filter Sumber" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Semua Sumber</SelectItem>
+              <SelectItem value="all">Semua Sumber</SelectItem>
               {masterData.sumberLeads.map((sumber) => (
                 <SelectItem key={sumber.id} value={sumber.id}>
                   {sumber.sumber_leads}
