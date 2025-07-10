@@ -48,13 +48,38 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   });
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedProspek, setSelectedProspek] = useState<Prospek | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
   const itemsPerPage = 25;
+
+  // Test database connection
+  const testConnection = async () => {
+    try {
+      console.log('=== TESTING DATABASE CONNECTION ===');
+      const { data: testData, error: testError } = await supabase
+        .from('prospek')
+        .select('count(*)', { count: 'exact', head: true });
+      
+      console.log('Database test result:', { testData, testError });
+      
+      if (testError) {
+        console.error('Database connection error:', testError);
+        toast.error(`Database connection error: ${testError.message}`);
+        return false;
+      }
+      
+      console.log('Database connection successful');
+      return true;
+    } catch (error) {
+      console.error('Database test failed:', error);
+      return false;
+    }
+  };
 
   // Fetch master data
   const fetchMasterData = async () => {
     try {
-      console.log('Fetching master data for table filters...');
+      console.log('=== FETCHING MASTER DATA ===');
       
       const results = await Promise.allSettled([
         supabase.from('status_leads').select('*').order('status_leads'),
@@ -72,8 +97,24 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         profiles: results[4].status === 'fulfilled' ? results[4].value.data || [] : [],
       };
 
-      console.log('Master data loaded:', newMasterData);
+      console.log('Master data loaded:', {
+        statusLeads: newMasterData.statusLeads.length,
+        sumberLeads: newMasterData.sumberLeads.length,
+        tipeFaskes: newMasterData.tipeFaskes.length,
+        layananAssist: newMasterData.layananAssist.length,
+        profiles: newMasterData.profiles.length,
+      });
+
       setMasterData(newMasterData);
+      
+      // Check for failed requests
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const tables = ['status_leads', 'sumber_leads', 'tipe_faskes', 'layanan_assist', 'profiles'];
+          console.error(`Failed to fetch ${tables[index]}:`, result.reason);
+        }
+      });
+
     } catch (error) {
       console.error('Error fetching master data:', error);
       toast.error('Gagal mengambil data master');
@@ -82,34 +123,43 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   const fetchData = async (page: number = 1) => {
     console.log('=== FETCH DATA START ===');
-    console.log('User:', user);
-    console.log('Profile:', profile);
+    console.log('Auth state:', { user: !!user, profile: !!profile, userId: user?.id, userRole: profile?.role });
     
     if (!user) {
       console.log('No user found, cannot fetch data');
+      setDebugInfo({ error: 'No user logged in' });
       return;
     }
 
     setLoading(true);
-    try {
-      console.log('Starting to fetch prospek data...');
-      console.log('User role:', profile?.role);
-      console.log('User ID:', user.id);
+    setDebugInfo({ loading: true, user: !!user, profile: !!profile });
 
+    try {
+      // Test connection first
+      const connectionOk = await testConnection();
+      if (!connectionOk) {
+        setDebugInfo({ error: 'Database connection failed' });
+        return;
+      }
+
+      console.log('Building query...');
+      
       let query = supabase
         .from('prospek')
         .select('*', { count: 'exact' });
 
+      console.log('Base query created');
+
       // Apply role-based filtering
       if (profile?.role !== 'admin') {
-        console.log('Applying user filter for non-admin');
+        console.log('Applying user filter for non-admin user:', user.id);
         query = query.eq('created_by', user.id);
       } else {
-        console.log('Admin user - no filtering applied');
+        console.log('Admin user - no user filtering applied');
       }
 
       // Apply search filter
-      if (searchTerm) {
+      if (searchTerm.trim()) {
         console.log('Applying search filter:', searchTerm);
         query = query.or(`nama_prospek.ilike.%${searchTerm}%,nama_faskes.ilike.%${searchTerm}%,no_whatsapp.ilike.%${searchTerm}%`);
       }
@@ -130,41 +180,59 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       const from = (page - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      console.log('Applying pagination:', { from, to, page });
+      console.log('Applying pagination:', { from, to, page, itemsPerPage });
       
       query = query
         .range(from, to)
         .order('created_at', { ascending: false });
 
-      console.log('Executing query...');
+      console.log('Executing final query...');
       const { data: prospekData, error, count } = await query;
 
-      console.log('Query result:', { 
-        data: prospekData, 
-        error, 
-        count,
-        dataLength: prospekData?.length 
+      console.log('Query executed. Results:', { 
+        dataLength: prospekData?.length || 0, 
+        count, 
+        error: error?.message || 'none'
       });
 
       if (error) {
-        console.error('Error fetching prospek data:', error);
-        throw error;
+        console.error('Database query error:', error);
+        toast.error(`Database error: ${error.message}`);
+        setDebugInfo({ 
+          error: `Database error: ${error.message}`,
+          query: 'Failed to execute query'
+        });
+        return;
       }
 
-      console.log('Setting data and counts...');
+      console.log('Setting data state...');
       setData(prospekData || []);
       setTotalCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / itemsPerPage));
 
-      console.log('Data set successfully:', {
+      setDebugInfo({
+        success: true,
         dataCount: prospekData?.length || 0,
         totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / itemsPerPage)
+        currentPage: page,
+        userRole: profile?.role,
+        userId: user.id,
+        hasFilters: {
+          search: !!searchTerm,
+          status: !!filterStatus,
+          sumber: !!filterSumber
+        }
       });
 
+      console.log('Data fetch completed successfully');
+
     } catch (error: any) {
-      console.error('Error in fetchData:', error);
-      toast.error(`Gagal mengambil data prospek: ${error.message}`);
+      console.error('Unexpected error in fetchData:', error);
+      toast.error(`Unexpected error: ${error.message}`);
+      setDebugInfo({ 
+        error: `Unexpected error: ${error.message}`,
+        stack: error.stack
+      });
     } finally {
       setLoading(false);
       console.log('=== FETCH DATA END ===');
@@ -174,39 +242,30 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   // Initial data load
   useEffect(() => {
     console.log('=== INITIAL LOAD EFFECT ===');
-    console.log('User:', user);
-    console.log('Profile:', profile);
+    console.log('Dependencies:', { user: !!user, profile: !!profile });
     
     if (user && profile) {
-      console.log('User and profile available, starting data fetch...');
+      console.log('Loading initial data...');
       fetchMasterData();
       fetchData(1);
     } else {
-      console.log('User or profile not available yet');
+      console.log('Waiting for user/profile...');
+      setDebugInfo({ waiting: 'user or profile not ready' });
     }
   }, [user, profile]);
 
   // Refresh when refreshTrigger changes
   useEffect(() => {
-    console.log('=== REFRESH TRIGGER EFFECT ===');
-    console.log('Refresh trigger:', refreshTrigger);
-    console.log('User:', user);
-    console.log('Profile:', profile);
-    
     if (refreshTrigger > 0 && user && profile) {
-      console.log('Refresh triggered, reloading data...');
+      console.log('Refresh triggered:', refreshTrigger);
       fetchData(currentPage);
     }
   }, [refreshTrigger, currentPage, user, profile]);
 
   // Handle filter changes
   useEffect(() => {
-    console.log('=== FILTER CHANGE EFFECT ===');
-    console.log('Search term:', searchTerm);
-    console.log('Filter status:', filterStatus);
-    console.log('Filter sumber:', filterSumber);
-    
     if (user && profile) {
+      console.log('Filters changed, resetting to page 1');
       setCurrentPage(1);
       fetchData(1);
     }
@@ -302,13 +361,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     return buttons;
   }, [currentPage, totalPages, loading]);
 
-  console.log('=== RENDER ===');
-  console.log('Loading:', loading);
-  console.log('Data length:', data.length);
-  console.log('Total count:', totalCount);
-  console.log('User:', user);
-  console.log('Profile:', profile);
-
   return (
     <Card>
       <CardHeader>
@@ -374,14 +426,33 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       </CardHeader>
       
       <CardContent>
-        {/* Debug Info */}
-        <div className="mb-4 p-4 bg-gray-100 rounded text-sm">
-          <p><strong>Debug Info:</strong></p>
-          <p>User: {user ? 'Logged in' : 'Not logged in'}</p>
-          <p>Profile: {profile ? `${profile.full_name} (${profile.role})` : 'No profile'}</p>
-          <p>Loading: {loading ? 'Yes' : 'No'}</p>
-          <p>Data count: {data.length}</p>
-          <p>Total count: {totalCount}</p>
+        {/* Enhanced Debug Info */}
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm">
+          <p><strong>🔍 Debug Info:</strong></p>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <p><strong>Auth:</strong> {user ? '✅ Logged in' : '❌ Not logged in'}</p>
+              <p><strong>Profile:</strong> {profile ? `✅ ${profile.full_name} (${profile.role})` : '❌ No profile'}</p>
+              <p><strong>Loading:</strong> {loading ? '🔄 Yes' : '✅ No'}</p>
+            </div>
+            <div>
+              <p><strong>Data Count:</strong> {data.length}</p>
+              <p><strong>Total Count:</strong> {totalCount}</p>
+              <p><strong>Current Page:</strong> {currentPage}</p>
+              <p><strong>Master Data:</strong> {Object.values(masterData).every(arr => arr.length > 0) ? '✅ OK' : '❌ Missing'}</p>
+            </div>
+          </div>
+          {debugInfo.error && (
+            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
+              <p className="text-red-700"><strong>Error:</strong> {debugInfo.error}</p>
+            </div>
+          )}
+          <details className="mt-2">
+            <summary className="cursor-pointer text-blue-600">Show detailed debug info</summary>
+            <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </details>
         </div>
 
         {loading ? (
@@ -414,7 +485,15 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                   {data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={13} className="text-center py-8">
-                        {user && profile ? 'Tidak ada data prospek' : 'Anda perlu login untuk melihat data'}
+                        {!user ? (
+                          <div className="text-red-600">❌ Anda perlu login untuk melihat data</div>
+                        ) : !profile ? (
+                          <div className="text-yellow-600">⚠️ Profile tidak ditemukan</div>
+                        ) : debugInfo.error ? (
+                          <div className="text-red-600">❌ {debugInfo.error}</div>
+                        ) : (
+                          <div className="text-gray-500">📝 Tidak ada data prospek ditemukan</div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ) : (
