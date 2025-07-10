@@ -81,7 +81,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
       } else {
         const { data, error } = await supabase
           .from(table as TableNames)
-          .insert([formData])
+          .insert(formData)
           .select();
         
         console.log(`Insert ${table} result:`, { data, error });

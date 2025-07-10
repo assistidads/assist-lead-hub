@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,87 +94,6 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
     },
   });
 
-  useEffect(() => {
-    if (open) {
-      fetchMasterData();
-      if (prospek) {
-        console.log('Editing prospek:', prospek);
-        // Set form values for edit mode
-        const formValues = {
-          tanggal_prospek: new Date(prospek.tanggal_prospek),
-          nama_prospek: prospek.nama_prospek || '',
-          no_whatsapp: prospek.no_whatsapp || '',
-          status_leads_id: prospek.status_leads_id || '',
-          nama_faskes: prospek.nama_faskes || '',
-          tipe_faskes_id: prospek.tipe_faskes_id || '',
-          kota: prospek.kota || '',
-          provinsi_nama: prospek.provinsi_nama || '',
-          sumber_leads_id: prospek.sumber_leads_id || '',
-          kode_ads_id: prospek.kode_ads_id || '',
-          id_ads: prospek.id_ads || '',
-          layanan_assist_id: prospek.layanan_assist_id || '',
-          alasan_bukan_leads_id: prospek.alasan_bukan_leads_id || '',
-          keterangan_bukan_leads: prospek.keterangan_bukan_leads || '',
-          pic_leads_id: prospek.pic_leads_id || '',
-        };
-        
-        form.reset(formValues);
-        
-        // Set conditional fields
-        setSelectedSumberLeads(prospek.sumber_leads_id || '');
-        setSelectedStatusLeads(prospek.status_leads_id || '');
-        
-        // Check if we need to show ads fields
-        if (prospek.sumber_leads_id) {
-          setTimeout(() => {
-            const selectedSource = masterData.sumberLeads.find(s => s.id === prospek.sumber_leads_id);
-            const containsAds = selectedSource?.sumber_leads.toLowerCase().includes('ads');
-            setShowAdsFields(containsAds);
-          }, 100);
-        }
-        
-        // Check if we need to show bukan leads fields
-        if (prospek.status_leads_id) {
-          setTimeout(() => {
-            const selectedStatus = masterData.statusLeads.find(s => s.id === prospek.status_leads_id);
-            const isBukanLeads = selectedStatus?.status_leads.toLowerCase().includes('bukan leads');
-            setShowBukanLeadsFields(isBukanLeads);
-          }, 100);
-        }
-        
-        // Load cities for the selected province
-        if (prospek.provinsi_nama) {
-          const province = provinces.find(p => p.name === prospek.provinsi_nama);
-          if (province) {
-            fetchCitiesByProvince(province.id);
-          }
-        }
-      } else {
-        form.reset({
-          tanggal_prospek: new Date(),
-          nama_prospek: '',
-          no_whatsapp: '',
-          status_leads_id: '',
-          nama_faskes: '',
-          tipe_faskes_id: '',
-          kota: '',
-          provinsi_nama: '',
-          sumber_leads_id: '',
-          kode_ads_id: '',
-          id_ads: '',
-          layanan_assist_id: '',
-          alasan_bukan_leads_id: '',
-          keterangan_bukan_leads: '',
-          pic_leads_id: profile?.role === 'admin' ? '' : user?.id || '',
-        });
-        setSelectedSumberLeads('');
-        setSelectedStatusLeads('');
-        setShowAdsFields(false);
-        setShowBukanLeadsFields(false);
-      }
-    }
-  }, [open, prospek, form, profile, user, provinces, masterData.sumberLeads, masterData.statusLeads]);
-
   const fetchMasterData = async () => {
     try {
       console.log('Fetching master data...');
@@ -206,7 +126,6 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         profiles: profilesRes
       });
 
-      // Check for errors in any of the requests
       if (sumberLeadsRes.error) console.error('Sumber leads error:', sumberLeadsRes.error);
       if (kodeAdsRes.error) console.error('Kode ads error:', kodeAdsRes.error);
       if (layananAssistRes.error) console.error('Layanan assist error:', layananAssistRes.error);
@@ -215,7 +134,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
       if (tipeFaskesRes.error) console.error('Tipe faskes error:', tipeFaskesRes.error);
       if (profilesRes.error) console.error('Profiles error:', profilesRes.error);
 
-      setMasterData({
+      const newMasterData = {
         sumberLeads: sumberLeadsRes.data || [],
         kodeAds: kodeAdsRes.data || [],
         layananAssist: layananAssistRes.data || [],
@@ -223,12 +142,96 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         statusLeads: statusLeadsRes.data || [],
         tipeFaskes: tipeFaskesRes.data || [],
         profiles: profilesRes.data || [],
-      });
+      };
+      
+      setMasterData(newMasterData);
+      return newMasterData;
     } catch (error) {
       console.error('Error fetching master data:', error);
       toast.error('Gagal mengambil data master');
+      return masterData;
     }
   };
+
+  useEffect(() => {
+    if (open) {
+      fetchMasterData().then((masterDataResult) => {
+        if (prospek) {
+          console.log('Setting form values for edit mode:', prospek);
+          
+          // Reset form with prospek data
+          const formData = {
+            tanggal_prospek: new Date(prospek.tanggal_prospek),
+            nama_prospek: prospek.nama_prospek || '',
+            no_whatsapp: prospek.no_whatsapp || '',
+            status_leads_id: prospek.status_leads_id || '',
+            nama_faskes: prospek.nama_faskes || '',
+            tipe_faskes_id: prospek.tipe_faskes_id || '',
+            kota: prospek.kota || '',
+            provinsi_nama: prospek.provinsi_nama || '',
+            sumber_leads_id: prospek.sumber_leads_id || '',
+            kode_ads_id: prospek.kode_ads_id || '',
+            id_ads: prospek.id_ads || '',
+            layanan_assist_id: prospek.layanan_assist_id || '',
+            alasan_bukan_leads_id: prospek.alasan_bukan_leads_id || '',
+            keterangan_bukan_leads: prospek.keterangan_bukan_leads || '',
+            pic_leads_id: prospek.pic_leads_id || '',
+          };
+          
+          form.reset(formData);
+          
+          // Set state variables
+          setSelectedSumberLeads(prospek.sumber_leads_id || '');
+          setSelectedStatusLeads(prospek.status_leads_id || '');
+          
+          // Handle conditional fields
+          if (prospek.sumber_leads_id) {
+            const selectedSource = masterDataResult.sumberLeads.find(s => s.id === prospek.sumber_leads_id);
+            const containsAds = selectedSource?.sumber_leads.toLowerCase().includes('ads');
+            setShowAdsFields(containsAds);
+          }
+          
+          if (prospek.status_leads_id) {
+            const selectedStatus = masterDataResult.statusLeads.find(s => s.id === prospek.status_leads_id);
+            const isBukanLeads = selectedStatus?.status_leads.toLowerCase().includes('bukan leads');
+            setShowBukanLeadsFields(isBukanLeads);
+          }
+          
+          // Load cities for the selected province
+          if (prospek.provinsi_nama) {
+            const province = provinces.find(p => p.name === prospek.provinsi_nama);
+            if (province) {
+              fetchCitiesByProvince(province.id);
+            }
+          }
+        } else {
+          // Reset form for new entry
+          form.reset({
+            tanggal_prospek: new Date(),
+            nama_prospek: '',
+            no_whatsapp: '',
+            status_leads_id: '',
+            nama_faskes: '',
+            tipe_faskes_id: '',
+            kota: '',
+            provinsi_nama: '',
+            sumber_leads_id: '',
+            kode_ads_id: '',
+            id_ads: '',
+            layanan_assist_id: '',
+            alasan_bukan_leads_id: '',
+            keterangan_bukan_leads: '',
+            pic_leads_id: profile?.role === 'admin' ? '' : user?.id || '',
+          });
+          
+          setSelectedSumberLeads('');
+          setSelectedStatusLeads('');
+          setShowAdsFields(false);
+          setShowBukanLeadsFields(false);
+        }
+      });
+    }
+  }, [open, prospek, form, profile, user, provinces]);
 
   const handleSumberLeadsChange = (value: string) => {
     setSelectedSumberLeads(value);
@@ -438,7 +441,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Kode Ads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih kode ads" />
@@ -463,7 +466,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>ID Ads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih ID ads" />
@@ -517,7 +520,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Bukan Leads</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih alasan bukan leads" />
@@ -673,7 +676,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>PIC Leads</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih PIC" />
