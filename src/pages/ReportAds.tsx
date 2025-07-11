@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Loader2, Plus, Eye, TrendingUp, TrendingDown, Edit, DollarSign } from 'lucide-react';
+import { Loader2, Plus, Eye, TrendingUp, TrendingDown, Edit, DollarSign, Users, Target, Calculator, BarChart, Wallet, CreditCard, PiggyBank } from 'lucide-react';
 
 interface AdsData {
   kode_ads_id: string;
@@ -87,6 +87,8 @@ const ReportAds: React.FC = () => {
   const [updateSpentDialogOpen, setUpdateSpentDialogOpen] = useState(false);
   const [spentAmount, setSpentAmount] = useState('');
   const [includePpn, setIncludePpn] = useState(false);
+  const [addKodeAdsDialogOpen, setAddKodeAdsDialogOpen] = useState(false);
+  const [newKodeAds, setNewKodeAds] = useState('');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -435,6 +437,41 @@ const ReportAds: React.FC = () => {
     }
   };
 
+  const handleAddKodeAds = async () => {
+    if (!newKodeAds.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Harap isi kode ads',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('kode_ads')
+        .insert({ kode: newKodeAds.trim() });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sukses',
+        description: 'Kode ads berhasil ditambahkan',
+      });
+
+      setAddKodeAdsDialogOpen(false);
+      setNewKodeAds('');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error adding kode ads:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal menambahkan kode ads',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -469,11 +506,12 @@ const ReportAds: React.FC = () => {
         </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      {/* Metrics Cards - Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Jumlah Prospek</CardTitle>
+            <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.current.total_prospek.toLocaleString()}</div>
@@ -494,6 +532,7 @@ const ReportAds: React.FC = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Jumlah Leads</CardTitle>
+            <Target className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.current.total_leads.toLocaleString()}</div>
@@ -514,6 +553,7 @@ const ReportAds: React.FC = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cost Per Leads</CardTitle>
+            <Calculator className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.current.cost_per_leads)}</div>
@@ -533,27 +573,42 @@ const ReportAds: React.FC = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Budget Spent</CardTitle>
+            <CardTitle className="text-sm font-medium">CTR Leads</CardTitle>
+            <BarChart className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics.current.total_budget_spent)}</div>
+            <div className="text-2xl font-bold">{((metrics.current.total_leads / metrics.current.total_prospek) * 100 || 0).toFixed(2)}%</div>
             <div className="flex items-center text-sm">
-              {calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent) >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-red-600 mr-1" />
+              {calculatePercentageChange(
+                (metrics.current.total_leads / metrics.current.total_prospek) * 100 || 0,
+                (metrics.previous.total_leads / metrics.previous.total_prospek) * 100 || 0
+              ) >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-green-600 mr-1" />
+                <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
               )}
-              <span className={calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent) >= 0 ? 'text-red-600' : 'text-green-600'}>
-                {Math.abs(calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent)).toFixed(1)}%
+              <span className={calculatePercentageChange(
+                (metrics.current.total_leads / metrics.current.total_prospek) * 100 || 0,
+                (metrics.previous.total_leads / metrics.previous.total_prospek) * 100 || 0
+              ) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                {Math.abs(calculatePercentageChange(
+                  (metrics.current.total_leads / metrics.current.total_prospek) * 100 || 0,
+                  (metrics.previous.total_leads / metrics.previous.total_prospek) * 100 || 0
+                )).toFixed(1)}%
               </span>
               <span className="text-muted-foreground ml-1">vs bulan lalu</span>
             </div>
           </CardContent>
         </Card>
 
+      </div>
+
+      {/* Row 2 Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
+            <Wallet className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.current.total_budget)}</div>
@@ -573,7 +628,29 @@ const ReportAds: React.FC = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Budget Spent</CardTitle>
+            <CreditCard className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.current.total_budget_spent)}</div>
+            <div className="flex items-center text-sm">
+              {calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent) >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-red-600 mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-green-600 mr-1" />
+              )}
+              <span className={calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent) >= 0 ? 'text-red-600' : 'text-green-600'}>
+                {Math.abs(calculatePercentageChange(metrics.current.total_budget_spent, metrics.previous.total_budget_spent)).toFixed(1)}%
+              </span>
+              <span className="text-muted-foreground ml-1">vs bulan lalu</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sisa Budget</CardTitle>
+            <PiggyBank className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.current.sisa_budget)}</div>
@@ -614,10 +691,42 @@ const ReportAds: React.FC = () => {
         </CardHeader>
       </Card>
 
+      {/* Add Kode Ads Dialog */}
+      <Dialog open={addKodeAdsDialogOpen} onOpenChange={setAddKodeAdsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Kode Ads</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="kode-ads">Kode Ads</Label>
+              <Input
+                id="kode-ads"
+                value={newKodeAds}
+                onChange={(e) => setNewKodeAds(e.target.value)}
+                placeholder="Masukkan kode ads"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAddKodeAdsDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleAddKodeAds}>
+                Tambah Kode Ads
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Data Report Ads</CardTitle>
+          <Button onClick={() => setAddKodeAdsDialogOpen(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Tambah Data
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
