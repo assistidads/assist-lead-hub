@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { Prospek } from '@/types/database';
 import { ProspekDetailDialog } from './ProspekDetailDialog';
+import { ProspekFilter } from './ProspekFilter';
 
 interface ProspekTableNewProps {
   onEdit: (prospek: Prospek) => void;
@@ -34,8 +35,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   const [data, setData] = useState<Prospek[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterSumber, setFilterSumber] = useState('');
+  const [activeFilters, setActiveFilters] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -120,14 +120,70 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         query = query.or(`nama_prospek.ilike.%${searchTerm}%,nama_faskes.ilike.%${searchTerm}%,no_whatsapp.ilike.%${searchTerm}%`);
       }
 
-      // Apply status filter
-      if (filterStatus) {
-        query = query.eq('status_leads_id', filterStatus);
+      // Apply filters
+      if (activeFilters.statusLeads) {
+        query = query.eq('status_leads_id', activeFilters.statusLeads);
+      }
+      if (activeFilters.sumberLeads) {
+        query = query.eq('sumber_leads_id', activeFilters.sumberLeads);
+      }
+      if (activeFilters.kodeAds) {
+        query = query.eq('kode_ads_id', activeFilters.kodeAds);
+      }
+      if (activeFilters.layananAssist) {
+        query = query.eq('layanan_assist_id', activeFilters.layananAssist);
       }
 
-      // Apply sumber filter
-      if (filterSumber) {
-        query = query.eq('sumber_leads_id', filterSumber);
+      // Apply date filters
+      if (activeFilters.periode) {
+        const today = new Date();
+        let dateFilter = null;
+
+        switch (activeFilters.periode) {
+          case 'today':
+            dateFilter = format(today, 'yyyy-MM-dd');
+            query = query.eq('tanggal_prospek', dateFilter);
+            break;
+          case 'yesterday':
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            dateFilter = format(yesterday, 'yyyy-MM-dd');
+            query = query.eq('tanggal_prospek', dateFilter);
+            break;
+          case 'this-week':
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            query = query.gte('tanggal_prospek', format(startOfWeek, 'yyyy-MM-dd'));
+            break;
+          case 'last-week':
+            const lastWeekStart = new Date(today);
+            lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
+            const lastWeekEnd = new Date(lastWeekStart);
+            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+            query = query
+              .gte('tanggal_prospek', format(lastWeekStart, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(lastWeekEnd, 'yyyy-MM-dd'));
+            break;
+          case 'this-month':
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            query = query.gte('tanggal_prospek', format(startOfMonth, 'yyyy-MM-dd'));
+            break;
+          case 'last-month':
+            const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+            query = query
+              .gte('tanggal_prospek', format(lastMonthStart, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(lastMonthEnd, 'yyyy-MM-dd'));
+            break;
+          case 'custom':
+            if (activeFilters.customDateFrom) {
+              query = query.gte('tanggal_prospek', format(activeFilters.customDateFrom, 'yyyy-MM-dd'));
+            }
+            if (activeFilters.customDateTo) {
+              query = query.lte('tanggal_prospek', format(activeFilters.customDateTo, 'yyyy-MM-dd'));
+            }
+            break;
+        }
       }
 
       // Apply pagination
@@ -162,8 +218,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         userId: user.id,
         hasFilters: {
           search: !!searchTerm,
-          status: !!filterStatus,
-          sumber: !!filterSumber
+          filters: Object.keys(activeFilters).length > 0
         }
       });
 
@@ -201,7 +256,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       setCurrentPage(1);
       fetchData(1);
     }
-  }, [searchTerm, filterStatus, filterSumber, user, profile]);
+  }, [searchTerm, activeFilters, user, profile]);
 
   // Helper functions for displaying data
   const getStatusBadge = (statusId: string) => {
@@ -332,43 +387,22 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mt-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama prospek, faskes, atau nomor WhatsApp..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari nama prospek, faskes, atau nomor WhatsApp..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 w-[200px]"
+            />
           </div>
-          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value === "all" ? "" : value)}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filter Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              {masterData.statusLeads.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  {status.status_leads}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterSumber} onValueChange={(value) => setFilterSumber(value === "all" ? "" : value)}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filter Sumber" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Sumber</SelectItem>
-              {masterData.sumberLeads.map((sumber) => (
-                <SelectItem key={sumber.id} value={sumber.id}>
-                  {sumber.sumber_leads}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="w-[200px]">
+            <ProspekFilter
+              masterData={masterData}
+              onFilterChange={setActiveFilters}
+              onReset={() => setActiveFilters({})}
+            />
+          </div>
         </div>
       </CardHeader>
       

@@ -425,7 +425,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sumber Leads</FormLabel>
-                    <Select onValueChange={handleSumberLeadsChange} value={field.value || undefined}>
+                    <Select onValueChange={handleSumberLeadsChange} value={selectedSumberLeads || field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih sumber leads" />
@@ -505,7 +505,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Leads</FormLabel>
-                    <Select onValueChange={handleStatusLeadsChange} value={field.value || undefined}>
+                    <Select onValueChange={handleStatusLeadsChange} value={selectedStatusLeads || field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status leads" />
@@ -573,7 +573,10 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Layanan Assist</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue('layanan_assist_id', value);
+                    }} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih layanan assist" />
@@ -612,7 +615,10 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipe Faskes</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue('tipe_faskes_id', value);
+                    }} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih tipe faskes" />
