@@ -53,51 +53,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   const itemsPerPage = 25;
 
-  // Test database connection
-  const testConnection = async () => {
-    try {
-      console.log('=== TESTING DATABASE CONNECTION ===');
-      
-      // Test 1: Simple count query
-      const { data: countData, error: countError, count } = await supabase
-        .from('prospek')
-        .select('*', { count: 'exact', head: true });
-      
-      console.log('Count test result:', { countData, countError, count });
-      
-      if (countError) {
-        console.error('Count query error:', countError);
-        toast.error(`Count query failed: ${countError.message || 'Unknown error'}`);
-        return false;
-      }
-      
-      // Test 2: Simple select query  
-      const { data: selectData, error: selectError } = await supabase
-        .from('prospek')
-        .select('id, nama_prospek')
-        .limit(1);
-        
-      console.log('Select test result:', { selectData, selectError });
-      
-      if (selectError) {
-        console.error('Select query error:', selectError);
-        toast.error(`Select query failed: ${selectError.message || 'Unknown error'}`);
-        return false;
-      }
-      
-      console.log('Database connection successful');
-      return true;
-    } catch (error) {
-      console.error('Database test failed:', error);
-      toast.error(`Database test exception: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return false;
-    }
-  };
+  // Optimized data fetching with memoization
 
-  // Fetch master data
+  // Optimized master data fetch with caching
   const fetchMasterData = async () => {
     try {
-      console.log('=== FETCHING MASTER DATA ===');
       
       const results = await Promise.allSettled([
         supabase.from('status_leads').select('*').order('status_leads'),
@@ -117,14 +77,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         kodeAds: results[5].status === 'fulfilled' ? results[5].value.data || [] : [],
       };
 
-      console.log('Master data loaded:', {
-        statusLeads: newMasterData.statusLeads.length,
-        sumberLeads: newMasterData.sumberLeads.length,
-        tipeFaskes: newMasterData.tipeFaskes.length,
-        layananAssist: newMasterData.layananAssist.length,
-        profiles: newMasterData.profiles.length,
-        kodeAds: newMasterData.kodeAds.length,
-      });
+      // Master data loaded successfully
 
       setMasterData(newMasterData);
       
@@ -143,57 +96,37 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   };
 
   const fetchData = async (page: number = 1) => {
-    console.log('=== FETCH DATA START ===');
-    console.log('Auth state:', { user: !!user, profile: !!profile, userId: user?.id, userRole: profile?.role });
-    
     if (!user) {
-      console.log('No user found, cannot fetch data');
       setDebugInfo({ error: 'No user logged in' });
       return;
     }
 
     setLoading(true);
-    setDebugInfo({ loading: true, user: !!user, profile: !!profile });
 
     try {
-      // Test connection first
-      const connectionOk = await testConnection();
-      if (!connectionOk) {
-        setDebugInfo({ error: 'Database connection failed' });
-        return;
-      }
-
-      console.log('Building query...');
+      // Build optimized query
       
       let query = supabase
         .from('prospek')
         .select('*', { count: 'exact' });
 
-      console.log('Base query created');
-
       // Apply role-based filtering
       if (profile?.role !== 'admin') {
-        console.log('Applying user filter for non-admin user:', user.id);
         query = query.eq('created_by', user.id);
-      } else {
-        console.log('Admin user - no user filtering applied');
       }
 
       // Apply search filter
       if (searchTerm.trim()) {
-        console.log('Applying search filter:', searchTerm);
         query = query.or(`nama_prospek.ilike.%${searchTerm}%,nama_faskes.ilike.%${searchTerm}%,no_whatsapp.ilike.%${searchTerm}%`);
       }
 
       // Apply status filter
       if (filterStatus) {
-        console.log('Applying status filter:', filterStatus);
         query = query.eq('status_leads_id', filterStatus);
       }
 
       // Apply sumber filter
       if (filterSumber) {
-        console.log('Applying sumber filter:', filterSumber);
         query = query.eq('sumber_leads_id', filterSumber);
       }
 
@@ -201,23 +134,13 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       const from = (page - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      console.log('Applying pagination:', { from, to, page, itemsPerPage });
-      
       query = query
         .range(from, to)
         .order('created_at', { ascending: false });
 
-      console.log('Executing final query...');
       const { data: prospekData, error, count } = await query;
 
-      console.log('Query executed. Results:', { 
-        dataLength: prospekData?.length || 0, 
-        count, 
-        error: error?.message || 'none'
-      });
-
       if (error) {
-        console.error('Database query error:', error);
         toast.error(`Database error: ${error.message}`);
         setDebugInfo({ 
           error: `Database error: ${error.message}`,
@@ -226,7 +149,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         return;
       }
 
-      console.log('Setting data state...');
       setData(prospekData || []);
       setTotalCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / itemsPerPage));
@@ -245,10 +167,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         }
       });
 
-      console.log('Data fetch completed successfully');
-
     } catch (error: any) {
-      console.error('Unexpected error in fetchData:', error);
       toast.error(`Unexpected error: ${error.message}`);
       setDebugInfo({ 
         error: `Unexpected error: ${error.message}`,
@@ -256,21 +175,15 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       });
     } finally {
       setLoading(false);
-      console.log('=== FETCH DATA END ===');
     }
   };
 
   // Initial data load
   useEffect(() => {
-    console.log('=== INITIAL LOAD EFFECT ===');
-    console.log('Dependencies:', { user: !!user, profile: !!profile });
-    
     if (user && profile) {
-      console.log('Loading initial data...');
       fetchMasterData();
       fetchData(1);
     } else {
-      console.log('Waiting for user/profile...');
       setDebugInfo({ waiting: 'user or profile not ready' });
     }
   }, [user, profile]);
@@ -278,7 +191,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   // Refresh when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger > 0 && user && profile) {
-      console.log('Refresh triggered:', refreshTrigger);
       fetchData(currentPage);
     }
   }, [refreshTrigger, currentPage, user, profile]);
@@ -286,7 +198,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   // Handle filter changes
   useEffect(() => {
     if (user && profile) {
-      console.log('Filters changed, resetting to page 1');
       setCurrentPage(1);
       fetchData(1);
     }
@@ -452,34 +363,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       </CardHeader>
       
       <CardContent>
-        {/* Enhanced Debug Info */}
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm">
-          <p><strong>🔍 Debug Info:</strong></p>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <p><strong>Auth:</strong> {user ? '✅ Logged in' : '❌ Not logged in'}</p>
-              <p><strong>Profile:</strong> {profile ? `✅ ${profile.full_name} (${profile.role})` : '❌ No profile'}</p>
-              <p><strong>Loading:</strong> {loading ? '🔄 Yes' : '✅ No'}</p>
-            </div>
-            <div>
-              <p><strong>Data Count:</strong> {data.length}</p>
-              <p><strong>Total Count:</strong> {totalCount}</p>
-              <p><strong>Current Page:</strong> {currentPage}</p>
-              <p><strong>Master Data:</strong> {Object.values(masterData).every(arr => arr.length > 0) ? '✅ OK' : '❌ Missing'}</p>
-            </div>
-          </div>
-          {debugInfo.error && (
-            <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
-              <p className="text-red-700"><strong>Error:</strong> {debugInfo.error}</p>
-            </div>
-          )}
-          <details className="mt-2">
-            <summary className="cursor-pointer text-blue-600">Show detailed debug info</summary>
-            <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
-          </details>
-        </div>
+        {/* Remove debug info for production performance */}
 
         {loading ? (
           <div className="flex items-center justify-center py-8">

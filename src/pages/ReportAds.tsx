@@ -452,7 +452,10 @@ const ReportAds: React.FC = () => {
         .from('kode_ads')
         .insert({ kode: newKodeAds.trim() });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
 
       toast({
         title: 'Sukses',
