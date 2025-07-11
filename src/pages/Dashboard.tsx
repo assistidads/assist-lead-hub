@@ -1,22 +1,129 @@
 
+import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, Target } from 'lucide-react';
 import { MetricCard } from '@/components/Dashboard/MetricCard';
 import { RecentActivity } from '@/components/Dashboard/RecentActivity';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-// Mock data for charts
-const trendData = [
-  { day: 'Sen', prospek: 12, leads: 8 },
-  { day: 'Sel', prospek: 15, leads: 11 },
-  { day: 'Rab', prospek: 8, leads: 5 },
-  { day: 'Kam', prospek: 20, leads: 14 },
-  { day: 'Jum', prospek: 18, leads: 13 },
-  { day: 'Sab', prospek: 10, leads: 7 },
-  { day: 'Min', prospek: 6, leads: 4 },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, startOfYesterday, endOfYesterday } from 'date-fns';
 
 export default function Dashboard() {
+  const [metrics, setMetrics] = useState({
+    prospekToday: 0,
+    prospekYesterday: 0,
+    leadsToday: 0,
+    leadsYesterday: 0,
+    prospekThisMonth: 0,
+    prospekLastMonth: 0,
+    leadsThisMonth: 0,
+    leadsLastMonth: 0
+  });
+  const [trendData, setTrendData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      const now = new Date();
+      const today = startOfDay(now);
+      const yesterday = startOfYesterday();
+      const thisMonthStart = startOfMonth(now);
+      const lastMonthStart = startOfMonth(subMonths(now, 1));
+      const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+      // Get leads status IDs
+      const { data: statusData } = await supabase
+        .from('status_leads')
+        .select('id, status_leads');
+
+      const leadsStatusIds = statusData
+        ?.filter(status => status.status_leads.toLowerCase().includes('leads'))
+        ?.map(status => status.id) || [];
+
+      // Fetch metrics data
+      const [
+        { data: prospekTodayData },
+        { data: prospekYesterdayData },
+        { data: prospekThisMonthData },
+        { data: prospekLastMonthData }
+      ] = await Promise.all([
+        supabase.from('prospek').select('status_leads_id').gte('tanggal_prospek', format(today, 'yyyy-MM-dd')),
+        supabase.from('prospek').select('status_leads_id').eq('tanggal_prospek', format(yesterday, 'yyyy-MM-dd')),
+        supabase.from('prospek').select('status_leads_id').gte('tanggal_prospek', format(thisMonthStart, 'yyyy-MM-dd')),
+        supabase.from('prospek').select('status_leads_id').gte('tanggal_prospek', format(lastMonthStart, 'yyyy-MM-dd')).lte('tanggal_prospek', format(lastMonthEnd, 'yyyy-MM-dd'))
+      ]);
+
+      // Calculate metrics
+      const prospekToday = prospekTodayData?.length || 0;
+      const leadsToday = prospekTodayData?.filter(p => leadsStatusIds.includes(p.status_leads_id)).length || 0;
+      const prospekYesterday = prospekYesterdayData?.length || 0;
+      const leadsYesterday = prospekYesterdayData?.filter(p => leadsStatusIds.includes(p.status_leads_id)).length || 0;
+      const prospekThisMonth = prospekThisMonthData?.length || 0;
+      const leadsThisMonth = prospekThisMonthData?.filter(p => leadsStatusIds.includes(p.status_leads_id)).length || 0;
+      const prospekLastMonth = prospekLastMonthData?.length || 0;
+      const leadsLastMonth = prospekLastMonthData?.filter(p => leadsStatusIds.includes(p.status_leads_id)).length || 0;
+
+      setMetrics({
+        prospekToday,
+        prospekYesterday,
+        leadsToday,
+        leadsYesterday,
+        prospekThisMonth,
+        prospekLastMonth,
+        leadsThisMonth,
+        leadsLastMonth
+      });
+
+      // Fetch 7-day trend data
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = subDays(now, 6 - i);
+        return {
+          date: format(date, 'yyyy-MM-dd'),
+          day: format(date, 'E')
+        };
+      });
+
+      const trendPromises = last7Days.map(async ({ date, day }) => {
+        const { data } = await supabase
+          .from('prospek')
+          .select('status_leads_id')
+          .eq('tanggal_prospek', date);
+
+        const prospek = data?.length || 0;
+        const leads = data?.filter(p => leadsStatusIds.includes(p.status_leads_id)).length || 0;
+
+        return { day, prospek, leads };
+      });
+
+      const trendResults = await Promise.all(trendPromises);
+      setTrendData(trendResults);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculatePercentageChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -30,31 +137,43 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Prospek Hari Ini"
-          value="23"
+          value={metrics.prospekToday.toString()}
           icon={Users}
           description="Prospek masuk hari ini"
-          trend={{ value: 15, label: 'dari kemarin' }}
+          trend={{ 
+            value: calculatePercentageChange(metrics.prospekToday, metrics.prospekYesterday), 
+            label: 'dari kemarin' 
+          }}
         />
         <MetricCard
           title="Leads Hari Ini"
-          value="16"
+          value={metrics.leadsToday.toString()}
           icon={Target}
           description="Leads masuk hari ini"
-          trend={{ value: -5, label: 'dari kemarin' }}
+          trend={{ 
+            value: calculatePercentageChange(metrics.leadsToday, metrics.leadsYesterday), 
+            label: 'dari kemarin' 
+          }}
         />
         <MetricCard
           title="Prospek Bulan Ini"
-          value="1,234"
+          value={metrics.prospekThisMonth.toString()}
           icon={BarChart3}
           description="Total prospek bulan ini"
-          trend={{ value: 12, label: 'dari bulan lalu' }}
+          trend={{ 
+            value: calculatePercentageChange(metrics.prospekThisMonth, metrics.prospekLastMonth), 
+            label: 'dari bulan lalu' 
+          }}
         />
         <MetricCard
           title="Leads Bulan Ini"
-          value="856"
+          value={metrics.leadsThisMonth.toString()}
           icon={TrendingUp}
           description="Total leads bulan ini"
-          trend={{ value: 8, label: 'dari bulan lalu' }}
+          trend={{ 
+            value: calculatePercentageChange(metrics.leadsThisMonth, metrics.leadsLastMonth), 
+            label: 'dari bulan lalu' 
+          }}
         />
       </div>
 

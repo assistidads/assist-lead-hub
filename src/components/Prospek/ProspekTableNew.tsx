@@ -368,10 +368,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
           <div className="flex items-center gap-4">
             <CardTitle>Data Prospek ({totalCount})</CardTitle>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={onOpenForm} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Tambah Prospek
-              </Button>
               <Button 
                 onClick={() => fetchData(currentPage)} 
                 size="sm" 
@@ -393,7 +389,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
               placeholder="Cari nama prospek, faskes, atau nomor WhatsApp..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-[200px]"
+              className="pl-9 w-[500px]"
             />
           </div>
           <div className="w-[200px]">

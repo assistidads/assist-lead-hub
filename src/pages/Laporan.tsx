@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Target, Users, Building2, UserCheck, MapPin, Loader2, PieChart, BarChart3 } from "lucide-react";
 import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Bar } from "recharts";
+import { ReportFilter } from '@/components/ReportFilter';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
@@ -66,29 +68,79 @@ export default function Laporan() {
     performaCS: [],
     kotaKabupaten: []
   });
+  const [activeFilters, setActiveFilters] = useState<any>({});
 
   const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Build query with date filters
+      let query = supabase
+        .from('prospek')
+        .select(`
+          sumber_leads:sumber_leads_id(sumber_leads),
+          kode_ads:kode_ads_id(kode),
+          layanan:layanan_assist_id(layanan),
+          tipe_faskes:tipe_faskes_id(tipe_faskes),
+          created_by,
+          status_leads_id,
+          profiles!prospek_created_by_fkey(full_name),
+          kota,
+          id_ads,
+          tanggal_prospek
+        `);
+
+      // Apply date filters
+      if (activeFilters.periode) {
+        const today = new Date();
+        
+        switch (activeFilters.periode) {
+          case 'today':
+            query = query.eq('tanggal_prospek', format(today, 'yyyy-MM-dd'));
+            break;
+          case 'yesterday':
+            const yesterday = subDays(today, 1);
+            query = query.eq('tanggal_prospek', format(yesterday, 'yyyy-MM-dd'));
+            break;
+          case 'this-week':
+            const startWeek = startOfWeek(today);
+            query = query.gte('tanggal_prospek', format(startWeek, 'yyyy-MM-dd'));
+            break;
+          case 'last-week':
+            const lastWeekStart = startOfWeek(subWeeks(today, 1));
+            const lastWeekEnd = endOfWeek(subWeeks(today, 1));
+            query = query
+              .gte('tanggal_prospek', format(lastWeekStart, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(lastWeekEnd, 'yyyy-MM-dd'));
+            break;
+          case 'this-month':
+            const startMonth = startOfMonth(today);
+            query = query.gte('tanggal_prospek', format(startMonth, 'yyyy-MM-dd'));
+            break;
+          case 'last-month':
+            const lastMonthStart = startOfMonth(subMonths(today, 1));
+            const lastMonthEnd = endOfMonth(subMonths(today, 1));
+            query = query
+              .gte('tanggal_prospek', format(lastMonthStart, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(lastMonthEnd, 'yyyy-MM-dd'));
+            break;
+          case 'custom':
+            if (activeFilters.customDateFrom) {
+              query = query.gte('tanggal_prospek', format(activeFilters.customDateFrom, 'yyyy-MM-dd'));
+            }
+            if (activeFilters.customDateTo) {
+              query = query.lte('tanggal_prospek', format(activeFilters.customDateTo, 'yyyy-MM-dd'));
+            }
+            break;
+        }
+      }
 
       // Fetch all data in parallel to improve performance
       const [
         { data: prospekData },
         { data: statusLeadsData }
       ] = await Promise.all([
-        supabase
-          .from('prospek')
-          .select(`
-            sumber_leads:sumber_leads_id(sumber_leads),
-            kode_ads:kode_ads_id(kode),
-            layanan:layanan_assist_id(layanan),
-            tipe_faskes:tipe_faskes_id(tipe_faskes),
-            created_by,
-            status_leads_id,
-            profiles!prospek_created_by_fkey(full_name),
-            kota,
-            id_ads
-          `),
+        query,
         supabase
           .from('status_leads')
           .select('id, status_leads')
@@ -311,7 +363,7 @@ export default function Laporan() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeFilters]);
 
   useEffect(() => {
     fetchReportData();
@@ -378,6 +430,9 @@ export default function Laporan() {
         </TabsList>
 
         <TabsContent value="sumber-leads">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -427,7 +482,6 @@ export default function Laporan() {
                         <TableHead>Prospek</TableHead>
                         <TableHead>Leads</TableHead>
                         <TableHead>CTR Leads</TableHead>
-                        <TableHead>Persentase</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -439,21 +493,18 @@ export default function Laporan() {
                                 <Accordion type="single" collapsible>
                                   <AccordionItem value={`organik-${index}`} className="border-0">
                                     <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                                      <div className="flex w-full items-center justify-between">
-                                        <span className="font-medium">{item.sumber_leads}</span>
-                                        <div className="flex gap-8 text-sm">
-                                          <span>{item.prospek}</span>
-                                          <span>{item.leads}</span>
-                                          <span>
-                                            <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
-                                              {item.ctr_leads.toFixed(1)}%
-                                            </Badge>
-                                          </span>
-                                          <span>
-                                            <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                                          </span>
-                                        </div>
-                                      </div>
+                                       <div className="flex w-full items-center justify-between">
+                                         <span className="font-medium">{item.sumber_leads}</span>
+                                         <div className="flex gap-12 text-sm">
+                                           <span className="w-16 text-center">{item.prospek}</span>
+                                           <span className="w-16 text-center">{item.leads}</span>
+                                           <span className="w-20 text-center">
+                                             <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
+                                               {item.ctr_leads.toFixed(1)}%
+                                             </Badge>
+                                           </span>
+                                         </div>
+                                       </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="px-4 pb-3">
                                       <div className="space-y-2">
@@ -506,6 +557,9 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="kode-ads">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -548,7 +602,6 @@ export default function Laporan() {
                         <TableHead>Prospek</TableHead>
                         <TableHead>Leads</TableHead>
                         <TableHead>CTR Leads</TableHead>
-                        <TableHead>Persentase</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -558,21 +611,18 @@ export default function Laporan() {
                             <Accordion type="single" collapsible>
                               <AccordionItem value={`kode-${index}`} className="border-0">
                                 <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                                  <div className="flex w-full items-center justify-between">
-                                    <span className="font-medium">{item.kode}</span>
-                                    <div className="flex gap-8 text-sm">
-                                      <span>{item.prospek}</span>
-                                      <span>{item.leads}</span>
-                                      <span>
-                                        <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
-                                          {item.ctr_leads.toFixed(1)}%
-                                        </Badge>
-                                      </span>
-                                      <span>
-                                        <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                                      </span>
-                                    </div>
-                                  </div>
+                                   <div className="flex w-full items-center justify-between">
+                                     <span className="font-medium">{item.kode}</span>
+                                     <div className="flex gap-12 text-sm">
+                                       <span className="w-16 text-center">{item.prospek}</span>
+                                       <span className="w-16 text-center">{item.leads}</span>
+                                       <span className="w-20 text-center">
+                                         <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
+                                           {item.ctr_leads.toFixed(1)}%
+                                         </Badge>
+                                       </span>
+                                     </div>
+                                   </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="px-4 pb-3">
                                   <div className="space-y-2">
@@ -607,6 +657,9 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="layanan">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -644,23 +697,19 @@ export default function Laporan() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Layanan</TableHead>
-                      <TableHead>Prospek</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>CTR Leads</TableHead>
-                      <TableHead>Persentase</TableHead>
+                       <TableHead>Layanan</TableHead>
+                       <TableHead>Prospek</TableHead>
+                       <TableHead>Leads</TableHead>
+                       <TableHead>CTR Leads</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportData.layanan.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell className="font-medium">{item.layanan}</TableCell>
-                        <TableCell>{item.prospek}</TableCell>
-                        <TableCell>{item.leads}</TableCell>
-                        <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                        </TableCell>
+                         <TableCell className="font-medium">{item.layanan}</TableCell>
+                         <TableCell>{item.prospek}</TableCell>
+                         <TableCell>{item.leads}</TableCell>
+                         <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -671,6 +720,9 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="tipe-faskes">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -715,23 +767,19 @@ export default function Laporan() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tipe Faskes</TableHead>
-                      <TableHead>Prospek</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>CTR Leads</TableHead>
-                      <TableHead>Persentase</TableHead>
+                       <TableHead>Tipe Faskes</TableHead>
+                       <TableHead>Prospek</TableHead>
+                       <TableHead>Leads</TableHead>
+                       <TableHead>CTR Leads</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportData.tipeFaskes.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell className="font-medium">{item.tipe_faskes}</TableCell>
-                        <TableCell>{item.prospek}</TableCell>
-                        <TableCell>{item.leads}</TableCell>
-                        <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                        </TableCell>
+                         <TableCell className="font-medium">{item.tipe_faskes}</TableCell>
+                         <TableCell>{item.prospek}</TableCell>
+                         <TableCell>{item.leads}</TableCell>
+                         <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -742,6 +790,9 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="performa-cs">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -806,6 +857,9 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="kota-kabupaten">
+          <div className="mb-4">
+            <ReportFilter onFilterChange={setActiveFilters} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -843,23 +897,19 @@ export default function Laporan() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Kota/Kabupaten</TableHead>
-                      <TableHead>Prospek</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>CTR Leads</TableHead>
-                      <TableHead>Persentase</TableHead>
+                       <TableHead>Kota/Kabupaten</TableHead>
+                       <TableHead>Prospek</TableHead>
+                       <TableHead>Leads</TableHead>
+                       <TableHead>CTR Leads</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportData.kotaKabupaten.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell className="font-medium">{item.kota}</TableCell>
-                        <TableCell>{item.prospek}</TableCell>
-                        <TableCell>{item.leads}</TableCell>
-                        <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                        </TableCell>
+                         <TableCell className="font-medium">{item.kota}</TableCell>
+                         <TableCell>{item.prospek}</TableCell>
+                         <TableCell>{item.leads}</TableCell>
+                         <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

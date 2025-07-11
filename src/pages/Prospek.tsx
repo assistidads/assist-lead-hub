@@ -1,5 +1,7 @@
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { ProspekTableNew } from '@/components/Prospek/ProspekTableNew';
 import { ProspekFormDialog } from '@/components/Prospek/ProspekFormDialog';
 import { UpdateStatusDialog } from '@/components/Prospek/UpdateStatusDialog';
@@ -38,11 +40,17 @@ export default function Prospek() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Data Prospek</h2>
-          <p className="text-muted-foreground">
-            Kelola data prospek dan leads Anda
-          </p>
+        <div className="flex items-center gap-4">
+          <Button onClick={handleAddProspek} size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Prospek
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Data Prospek</h2>
+            <p className="text-muted-foreground">
+              Kelola data prospek dan leads Anda
+            </p>
+          </div>
         </div>
       </div>
 
