@@ -25,11 +25,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Loader2, Plus, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader2, Plus, Eye, TrendingUp, TrendingDown, Edit, DollarSign } from 'lucide-react';
 
 interface AdsData {
   kode_ads_id: string;
@@ -52,12 +53,16 @@ interface ReportMetrics {
     total_prospek: number;
     total_leads: number;
     total_budget_spent: number;
+    total_budget: number;
+    sisa_budget: number;
     cost_per_leads: number;
   };
   previous: {
     total_prospek: number;
     total_leads: number;
     total_budget_spent: number;
+    total_budget: number;
+    sisa_budget: number;
     cost_per_leads: number;
   };
 }
@@ -77,9 +82,12 @@ const ReportAds: React.FC = () => {
   const [budgetDescription, setBudgetDescription] = useState('');
   const [budgetHistory, setBudgetHistory] = useState<BudgetHistory[]>([]);
   const [metrics, setMetrics] = useState<ReportMetrics>({
-    current: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, cost_per_leads: 0 },
-    previous: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, cost_per_leads: 0 }
+    current: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, total_budget: 0, sisa_budget: 0, cost_per_leads: 0 },
+    previous: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, total_budget: 0, sisa_budget: 0, cost_per_leads: 0 }
   });
+  const [updateSpentDialogOpen, setUpdateSpentDialogOpen] = useState(false);
+  const [spentAmount, setSpentAmount] = useState('');
+  const [includePpn, setIncludePpn] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -179,6 +187,8 @@ const ReportAds: React.FC = () => {
         total_prospek: currentAdsData.reduce((sum, ads) => sum + ads.prospek_count, 0),
         total_leads: currentAdsData.reduce((sum, ads) => sum + ads.leads_count, 0),
         total_budget_spent: currentAdsData.reduce((sum, ads) => sum + ads.budget_spent, 0),
+        total_budget: currentAdsData.reduce((sum, ads) => sum + ads.budget, 0),
+        sisa_budget: 0,
         cost_per_leads: 0,
       };
 
@@ -186,8 +196,13 @@ const ReportAds: React.FC = () => {
         total_prospek: prevAdsData.reduce((sum, ads) => sum + ads.prospek_count, 0),
         total_leads: prevAdsData.reduce((sum, ads) => sum + ads.leads_count, 0),
         total_budget_spent: prevAdsData.reduce((sum, ads) => sum + ads.budget_spent, 0),
+        total_budget: kodeAdsData?.reduce((sum, ads) => sum + (ads.ads_budget?.[0]?.budget || 0), 0) || 0,
+        sisa_budget: 0,
         cost_per_leads: 0,
       };
+
+      currentMetrics.sisa_budget = currentMetrics.total_budget - currentMetrics.total_budget_spent;
+      previousMetrics.sisa_budget = previousMetrics.total_budget - previousMetrics.total_budget_spent;
 
       currentMetrics.cost_per_leads = currentMetrics.total_leads > 0 
         ? currentMetrics.total_budget_spent / currentMetrics.total_leads 
@@ -341,6 +356,88 @@ const ReportAds: React.FC = () => {
     setDetailDialogOpen(true);
   };
 
+  const openUpdateSpentDialog = (ads: AdsData) => {
+    setSelectedAds(ads);
+    setUpdateSpentDialogOpen(true);
+  };
+
+  const formatRupiahInput = (value: string) => {
+    const number = value.replace(/[^\d]/g, '');
+    return new Intl.NumberFormat('id-ID').format(parseInt(number) || 0);
+  };
+
+  const parseRupiahInput = (value: string) => {
+    return value.replace(/[^\d]/g, '');
+  };
+
+  const handleUpdateSpent = async () => {
+    if (!selectedAds || !spentAmount) {
+      toast({
+        title: 'Error',
+        description: 'Harap isi jumlah budget spent',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      let { data: budgetData, error: budgetError } = await supabase
+        .from('ads_budget')
+        .select('id, budget_spent')
+        .eq('kode_ads_id', selectedAds.kode_ads_id)
+        .single();
+
+      if (budgetError && budgetError.code !== 'PGRST116') {
+        throw budgetError;
+      }
+
+      let baseAmount = parseFloat(parseRupiahInput(spentAmount));
+      if (includePpn) {
+        baseAmount = baseAmount * 1.11;
+      }
+
+      if (!budgetData) {
+        // Create new budget record if it doesn't exist
+        const { data: newBudget, error: createError } = await supabase
+          .from('ads_budget')
+          .insert({
+            kode_ads_id: selectedAds.kode_ads_id,
+            budget: 0,
+            budget_spent: baseAmount,
+          })
+          .select('id')
+          .single();
+
+        if (createError) throw createError;
+      } else {
+        // Update existing budget spent
+        const { error: updateError } = await supabase
+          .from('ads_budget')
+          .update({ budget_spent: baseAmount })
+          .eq('id', budgetData.id);
+
+        if (updateError) throw updateError;
+      }
+
+      toast({
+        title: 'Sukses',
+        description: `Budget spent berhasil diupdate${includePpn ? ' (termasuk PPN 11%)' : ''}`,
+      });
+
+      setUpdateSpentDialogOpen(false);
+      setSpentAmount('');
+      setIncludePpn(false);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error updating budget spent:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal mengupdate budget spent',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -376,7 +473,7 @@ const ReportAds: React.FC = () => {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Jumlah Prospek</CardTitle>
@@ -456,6 +553,46 @@ const ReportAds: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.current.total_budget)}</div>
+            <div className="flex items-center text-sm">
+              {calculatePercentageChange(metrics.current.total_budget, metrics.previous.total_budget) >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
+              )}
+              <span className={calculatePercentageChange(metrics.current.total_budget, metrics.previous.total_budget) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                {Math.abs(calculatePercentageChange(metrics.current.total_budget, metrics.previous.total_budget)).toFixed(1)}%
+              </span>
+              <span className="text-muted-foreground ml-1">vs bulan lalu</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sisa Budget</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.current.sisa_budget)}</div>
+            <div className="flex items-center text-sm">
+              {calculatePercentageChange(metrics.current.sisa_budget, metrics.previous.sisa_budget) >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
+              )}
+              <span className={calculatePercentageChange(metrics.current.sisa_budget, metrics.previous.sisa_budget) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                {Math.abs(calculatePercentageChange(metrics.current.sisa_budget, metrics.previous.sisa_budget)).toFixed(1)}%
+              </span>
+              <span className="text-muted-foreground ml-1">vs bulan lalu</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter */}
@@ -526,19 +663,29 @@ const ReportAds: React.FC = () => {
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
-                            size="sm"
+                            size="icon"
+                            className="h-8 w-8 bg-green-600 hover:bg-green-700"
                             onClick={() => openBudgetDialog(item)}
+                            title="Tambah Budget"
                           >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Tambah Budget
+                            <Plus className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="outline"
+                            className="h-8 w-8 border-blue-600 text-blue-600 hover:bg-blue-50"
                             onClick={() => openDetailDialog(item)}
+                            title="Detail"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Detail
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            className="h-8 w-8 bg-orange-600 hover:bg-orange-700"
+                            onClick={() => openUpdateSpentDialog(item)}
+                            title="Update Spent"
+                          >
+                            <Edit className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -562,9 +709,9 @@ const ReportAds: React.FC = () => {
               <Label htmlFor="budget-amount">Jumlah Budget</Label>
               <Input
                 id="budget-amount"
-                type="number"
-                value={budgetAmount}
-                onChange={(e) => setBudgetAmount(e.target.value)}
+                type="text"
+                value={budgetAmount ? formatRupiahInput(budgetAmount) : ''}
+                onChange={(e) => setBudgetAmount(parseRupiahInput(e.target.value))}
                 placeholder="Masukkan jumlah budget"
               />
             </div>
@@ -630,6 +777,48 @@ const ReportAds: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Spent Dialog */}
+      <Dialog open={updateSpentDialogOpen} onOpenChange={setUpdateSpentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Budget Spent - {selectedAds?.kode}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="spent-amount">Jumlah Budget Spent</Label>
+              <Input
+                id="spent-amount"
+                type="text"
+                value={spentAmount ? formatRupiahInput(spentAmount) : ''}
+                onChange={(e) => setSpentAmount(parseRupiahInput(e.target.value))}
+                placeholder="Masukkan jumlah budget spent"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-ppn"
+                checked={includePpn}
+                onCheckedChange={(checked) => setIncludePpn(checked === true)}
+              />
+              <Label htmlFor="include-ppn">Termasuk PPN 11%</Label>
+            </div>
+            {includePpn && spentAmount && (
+              <div className="text-sm text-muted-foreground">
+                Total dengan PPN: {formatCurrency(parseFloat(parseRupiahInput(spentAmount)) * 1.11)}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setUpdateSpentDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleUpdateSpent}>
+                Update Spent
+              </Button>
             </div>
           </div>
         </DialogContent>
