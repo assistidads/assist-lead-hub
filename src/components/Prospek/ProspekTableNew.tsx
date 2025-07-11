@@ -45,6 +45,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     tipeFaskes: [] as any[],
     layananAssist: [] as any[],
     profiles: [] as any[],
+    kodeAds: [] as any[],
   });
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedProspek, setSelectedProspek] = useState<Prospek | null>(null);
@@ -103,7 +104,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         supabase.from('sumber_leads').select('*').order('sumber_leads'),
         supabase.from('tipe_faskes').select('*').order('tipe_faskes'),
         supabase.from('layanan_assist').select('*').order('layanan'),
-        supabase.from('profiles').select('id, full_name, role').order('full_name')
+        supabase.from('profiles').select('id, full_name, role').order('full_name'),
+        supabase.from('kode_ads').select('*').order('kode')
       ]);
 
       const newMasterData = {
@@ -112,6 +114,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         tipeFaskes: results[2].status === 'fulfilled' ? results[2].value.data || [] : [],
         layananAssist: results[3].status === 'fulfilled' ? results[3].value.data || [] : [],
         profiles: results[4].status === 'fulfilled' ? results[4].value.data || [] : [],
+        kodeAds: results[5].status === 'fulfilled' ? results[5].value.data || [] : [],
       };
 
       console.log('Master data loaded:', {
@@ -120,6 +123,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         tipeFaskes: newMasterData.tipeFaskes.length,
         layananAssist: newMasterData.layananAssist.length,
         profiles: newMasterData.profiles.length,
+        kodeAds: newMasterData.kodeAds.length,
       });
 
       setMasterData(newMasterData);
@@ -127,7 +131,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
       // Check for failed requests
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const tables = ['status_leads', 'sumber_leads', 'tipe_faskes', 'layanan_assist', 'profiles'];
+          const tables = ['status_leads', 'sumber_leads', 'tipe_faskes', 'layanan_assist', 'profiles', 'kode_ads'];
           console.error(`Failed to fetch ${tables[index]}:`, result.reason);
         }
       });
@@ -319,6 +323,11 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     return pic ? pic.full_name : '-';
   };
 
+  const getKodeAds = (kodeId: string) => {
+    const kode = masterData.kodeAds.find(k => k.id === kodeId);
+    return kode ? kode.kode : '-';
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data prospek ini?')) {
       try {
@@ -493,6 +502,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                     <TableHead>Kota</TableHead>
                     <TableHead>Provinsi</TableHead>
                     <TableHead>Sumber Leads</TableHead>
+                    <TableHead>Kode Ads</TableHead>
+                    <TableHead>ID Ads</TableHead>
                     <TableHead>Layanan Assist</TableHead>
                     <TableHead>PIC</TableHead>
                     <TableHead>Aksi</TableHead>
@@ -501,7 +512,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                 <TableBody>
                   {data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8">
+                      <TableCell colSpan={15} className="text-center py-8">
                         {!user ? (
                           <div className="text-red-600">❌ Anda perlu login untuk melihat data</div>
                         ) : !profile ? (
@@ -533,6 +544,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                         <TableCell>{prospek.kota}</TableCell>
                         <TableCell>{prospek.provinsi_nama}</TableCell>
                         <TableCell>{getSumberLeads(prospek.sumber_leads_id || '')}</TableCell>
+                        <TableCell>{getKodeAds(prospek.kode_ads_id || '')}</TableCell>
+                        <TableCell>{prospek.id_ads || '-'}</TableCell>
                         <TableCell>{getLayananAssist(prospek.layanan_assist_id || '')}</TableCell>
                         <TableCell>{getPicName(prospek.pic_leads_id || '')}</TableCell>
                         <TableCell>

@@ -486,7 +486,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                           <SelectContent>
                             {Array.from({ length: 31 }, (_, i) => (
                               <SelectItem key={i} value={i.toString()}>
-                                {i}
+                                {i === 0 ? 'Form' : i}
                               </SelectItem>
                             ))}
                           </SelectContent>
