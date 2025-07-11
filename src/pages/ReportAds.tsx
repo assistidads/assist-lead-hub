@@ -54,6 +54,11 @@ interface BudgetHistory {
   };
 }
 
+interface LayananAssist {
+  id: string;
+  layanan: string;
+}
+
 interface ReportMetrics {
   current: {
     total_prospek: number;
@@ -79,6 +84,7 @@ const ReportAds: React.FC = () => {
   const [data, setData] = useState<AdsData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKodeAds, setSelectedKodeAds] = useState<string>('all');
+  const [selectedLayananAssist, setSelectedLayananAssist] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
   const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -86,6 +92,8 @@ const ReportAds: React.FC = () => {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [budgetDescription, setBudgetDescription] = useState('');
   const [budgetHistory, setBudgetHistory] = useState<BudgetHistory[]>([]);
+  const [spentHistory, setSpentHistory] = useState<BudgetHistory[]>([]);
+  const [layananAssistOptions, setLayananAssistOptions] = useState<LayananAssist[]>([]);
   const [metrics, setMetrics] = useState<ReportMetrics>({
     current: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, total_budget: 0, sisa_budget: 0, cost_per_leads: 0 },
     previous: { total_prospek: 0, total_leads: 0, total_budget_spent: 0, total_budget: 0, sisa_budget: 0, cost_per_leads: 0 }
@@ -108,6 +116,20 @@ const ReportAds: React.FC = () => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
   };
+
+  const fetchLayananAssistOptions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('layanan_assist')
+        .select('id, layanan')
+        .order('layanan');
+
+      if (error) throw error;
+      setLayananAssistOptions(data || []);
+    } catch (error) {
+      console.error('Error fetching layanan assist:', error);
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -137,16 +159,30 @@ const ReportAds: React.FC = () => {
               )
             )
           `),
-        supabase
-          .from('prospek')
-          .select('kode_ads_id, status_leads_id')
-          .gte('tanggal_prospek', format(startDate, 'yyyy-MM-dd'))
-          .lte('tanggal_prospek', format(endDate, 'yyyy-MM-dd')),
-        supabase
-          .from('prospek')
-          .select('kode_ads_id, status_leads_id')
-          .gte('tanggal_prospek', format(prevStartDate, 'yyyy-MM-dd'))
-          .lte('tanggal_prospek', format(prevEndDate, 'yyyy-MM-dd')),
+        selectedLayananAssist === 'all' 
+          ? supabase
+              .from('prospek')
+              .select('kode_ads_id, status_leads_id')
+              .gte('tanggal_prospek', format(startDate, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(endDate, 'yyyy-MM-dd'))
+          : supabase
+              .from('prospek')
+              .select('kode_ads_id, status_leads_id')
+              .eq('layanan_assist_id', selectedLayananAssist)
+              .gte('tanggal_prospek', format(startDate, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(endDate, 'yyyy-MM-dd')),
+        selectedLayananAssist === 'all'
+          ? supabase
+              .from('prospek')
+              .select('kode_ads_id, status_leads_id')
+              .gte('tanggal_prospek', format(prevStartDate, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(prevEndDate, 'yyyy-MM-dd'))
+          : supabase
+              .from('prospek')
+              .select('kode_ads_id, status_leads_id')
+              .eq('layanan_assist_id', selectedLayananAssist)
+              .gte('tanggal_prospek', format(prevStartDate, 'yyyy-MM-dd'))
+              .lte('tanggal_prospek', format(prevEndDate, 'yyyy-MM-dd')),
         supabase
           .from('status_leads')
           .select('id, status_leads')
@@ -239,7 +275,7 @@ const ReportAds: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, selectedMonth, toast]);
+  }, [user, selectedMonth, selectedLayananAssist, toast]);
 
   const fetchBudgetHistory = async (adsId: string) => {
     try {
@@ -264,7 +300,13 @@ const ReportAds: React.FC = () => {
 
       if (historyError) throw historyError;
 
-      setBudgetHistory(historyData || []);
+      // Separate budget additions and spent updates
+      const allHistory = historyData || [];
+      const budgetAdditions = allHistory.filter(h => h.description?.includes('budget') || h.description?.includes('Budget') || !h.description?.includes('spent'));
+      const spentUpdates = allHistory.filter(h => h.description?.includes('spent') || h.description?.includes('Spent'));
+
+      setBudgetHistory(budgetAdditions);
+      setSpentHistory(spentUpdates);
     } catch (error) {
       console.error('Error fetching budget history:', error);
     }
@@ -356,6 +398,10 @@ const ReportAds: React.FC = () => {
     }
     return data.filter(item => item.kode_ads_id === selectedKodeAds);
   }, [selectedKodeAds, data]);
+
+  useEffect(() => {
+    fetchLayananAssistOptions();
+  }, [fetchLayananAssistOptions]);
 
   useEffect(() => {
     fetchData();
@@ -692,21 +738,39 @@ const ReportAds: React.FC = () => {
       {/* Filter */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Label htmlFor="filter-kode">Filter Kode Ads:</Label>
-            <Select value={selectedKodeAds} onValueChange={setSelectedKodeAds}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Pilih Kode Ads" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kode Ads</SelectItem>
-                {data.map((item) => (
-                  <SelectItem key={item.kode_ads_id} value={item.kode_ads_id}>
-                    {item.kode}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="filter-layanan">Filter Layanan Assist:</Label>
+              <Select value={selectedLayananAssist} onValueChange={setSelectedLayananAssist}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Pilih Layanan Assist" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Layanan</SelectItem>
+                  {layananAssistOptions.map((layanan) => (
+                    <SelectItem key={layanan.id} value={layanan.id}>
+                      {layanan.layanan}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="filter-kode">Filter Kode Ads:</Label>
+              <Select value={selectedKodeAds} onValueChange={setSelectedKodeAds}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Pilih Kode Ads" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kode Ads</SelectItem>
+                  {data.map((item) => (
+                    <SelectItem key={item.kode_ads_id} value={item.kode_ads_id}>
+                      {item.kode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -902,31 +966,61 @@ const ReportAds: React.FC = () => {
               </div>
             </div>
             
-            <div>
-              <Label className="text-base font-semibold">History Update Budget</Label>
-              <div className="mt-2 max-h-64 overflow-y-auto">
-                {budgetHistory.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    Belum ada history update budget
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {budgetHistory.map((history) => (
-                      <div key={history.id} className="flex justify-between items-start p-3 border rounded">
-                        <div className="flex-1">
-                          <div className="font-medium">{formatCurrency(history.amount)}</div>
-                          <div className="text-sm text-muted-foreground">{history.description}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Oleh: {history.profiles?.full_name || 'User tidak diketahui'}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label className="text-base font-semibold">History Penambahan Budget</Label>
+                <div className="mt-2 max-h-64 overflow-y-auto">
+                  {budgetHistory.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Belum ada history penambahan budget
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {budgetHistory.map((history) => (
+                        <div key={history.id} className="flex justify-between items-start p-3 border rounded">
+                          <div className="flex-1">
+                            <div className="font-medium">{formatCurrency(history.amount)}</div>
+                            <div className="text-sm text-muted-foreground">{history.description}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Oleh: {history.profiles?.full_name || 'User tidak diketahui'}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(history.created_at), 'dd/MM/yyyy HH:mm')}
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {format(new Date(history.created_at), 'dd/MM/yyyy HH:mm')}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-base font-semibold">History Update Spent</Label>
+                <div className="mt-2 max-h-64 overflow-y-auto">
+                  {spentHistory.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Belum ada history update spent
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {spentHistory.map((history) => (
+                        <div key={history.id} className="flex justify-between items-start p-3 border rounded">
+                          <div className="flex-1">
+                            <div className="font-medium">{formatCurrency(history.amount)}</div>
+                            <div className="text-sm text-muted-foreground">{history.description}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Oleh: {history.profiles?.full_name || 'User tidak diketahui'}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(history.created_at), 'dd/MM/yyyy HH:mm')}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
