@@ -208,8 +208,16 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     const status = masterData.statusLeads.find(s => s.id === statusId);
     if (!status) return <Badge variant="secondary">-</Badge>;
     
-    const variant = status.status_leads.toLowerCase().includes('leads') ? 'default' : 
-                   status.status_leads.toLowerCase().includes('prospek') ? 'secondary' : 'outline';
+    const statusText = status.status_leads.toLowerCase();
+    let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+    
+    if (statusText.includes('leads')) {
+      variant = 'default'; // Green for leads
+    } else if (statusText.includes('prospek')) {
+      variant = 'secondary'; // Blue for prospek  
+    } else if (statusText.includes('bukan') || statusText.includes('tidak')) {
+      variant = 'destructive'; // Red for bukan leads
+    }
     
     return <Badge variant={variant}>{status.status_leads}</Badge>;
   };

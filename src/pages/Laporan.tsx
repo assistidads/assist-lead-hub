@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Target, Users, Building2, UserCheck, MapPin, Loader2, PieChart, BarChart3 } from "lucide-react";
@@ -19,10 +20,12 @@ interface BaseReportItem {
 
 interface SumberLeadsItem extends BaseReportItem {
   sumber_leads: string;
+  breakdown?: SumberLeadsItem[];
 }
 
 interface KodeAdsItem extends BaseReportItem {
   kode: string;
+  breakdown?: { id_ads: string; prospek: number; leads: number; ctr_leads: number }[];
 }
 
 interface LayananItem extends BaseReportItem {
@@ -83,7 +86,8 @@ export default function Laporan() {
             created_by,
             status_leads_id,
             profiles!prospek_created_by_fkey(full_name),
-            kota
+            kota,
+            id_ads
           `),
         supabase
           .from('status_leads')
@@ -96,44 +100,85 @@ export default function Laporan() {
         .filter(status => status.status_leads.toLowerCase().includes('leads'))
         .map(status => status.id);
 
-      // Process Sumber Leads with additional metrics
+      // Process Sumber Leads with additional metrics and group organik
       const sumberLeadsMap = new Map<string, { prospek: number; leads: number }>();
+      const organikBreakdown = new Map<string, { prospek: number; leads: number }>();
+      
       prospekData.forEach(item => {
         const sumber = item.sumber_leads?.sumber_leads || 'Unknown';
         const isLead = leadsStatusIds.includes(item.status_leads_id || '');
         
-        if (!sumberLeadsMap.has(sumber)) {
-          sumberLeadsMap.set(sumber, { prospek: 0, leads: 0 });
+        // Group non-Ads sources as Organik
+        const displaySumber = sumber.toLowerCase().includes('ads') ? sumber : 'Organik';
+        
+        if (!sumber.toLowerCase().includes('ads')) {
+          // Track organik breakdown
+          if (!organikBreakdown.has(sumber)) {
+            organikBreakdown.set(sumber, { prospek: 0, leads: 0 });
+          }
+          const organikData = organikBreakdown.get(sumber)!;
+          organikData.prospek += 1;
+          if (isLead) organikData.leads += 1;
         }
         
-        const data = sumberLeadsMap.get(sumber)!;
+        if (!sumberLeadsMap.has(displaySumber)) {
+          sumberLeadsMap.set(displaySumber, { prospek: 0, leads: 0 });
+        }
+        
+        const data = sumberLeadsMap.get(displaySumber)!;
         data.prospek += 1;
         if (isLead) data.leads += 1;
       });
 
       const totalSumberProspek = Array.from(sumberLeadsMap.values()).reduce((sum, item) => sum + item.prospek, 0);
-      const sumberLeads: SumberLeadsItem[] = Array.from(sumberLeadsMap.entries()).map(([sumber_leads, data]) => ({
-        sumber_leads,
-        prospek: data.prospek,
-        leads: data.leads,
-        ctr_leads: data.prospek > 0 ? (data.leads / data.prospek) * 100 : 0,
-        count: data.prospek,
-        percentage: totalSumberProspek > 0 ? (data.prospek / totalSumberProspek) * 100 : 0
-      }));
+      const sumberLeads: SumberLeadsItem[] = Array.from(sumberLeadsMap.entries()).map(([sumber_leads, data]) => {
+        const item: SumberLeadsItem = {
+          sumber_leads,
+          prospek: data.prospek,
+          leads: data.leads,
+          ctr_leads: data.prospek > 0 ? (data.leads / data.prospek) * 100 : 0,
+          count: data.prospek,
+          percentage: totalSumberProspek > 0 ? (data.prospek / totalSumberProspek) * 100 : 0
+        };
+        
+        // Add breakdown for Organik
+        if (sumber_leads === 'Organik') {
+          item.breakdown = Array.from(organikBreakdown.entries()).map(([source, sourceData]) => ({
+            sumber_leads: source,
+            prospek: sourceData.prospek,
+            leads: sourceData.leads,
+            ctr_leads: sourceData.prospek > 0 ? (sourceData.leads / sourceData.prospek) * 100 : 0,
+            count: sourceData.prospek,
+            percentage: data.prospek > 0 ? (sourceData.prospek / data.prospek) * 100 : 0
+          }));
+        }
+        
+        return item;
+      });
 
-      // Process Kode Ads with additional metrics
-      const kodeAdsMap = new Map<string, { prospek: number; leads: number }>();
+      // Process Kode Ads with additional metrics and ID breakdown
+      const kodeAdsMap = new Map<string, { prospek: number; leads: number; ids: Map<string, { prospek: number; leads: number }> }>();
+      
       prospekData.forEach(item => {
         const kode = item.kode_ads?.kode || 'Unknown';
+        const idAds = item.id_ads || 'Unknown';
         const isLead = leadsStatusIds.includes(item.status_leads_id || '');
         
         if (!kodeAdsMap.has(kode)) {
-          kodeAdsMap.set(kode, { prospek: 0, leads: 0 });
+          kodeAdsMap.set(kode, { prospek: 0, leads: 0, ids: new Map() });
         }
         
         const data = kodeAdsMap.get(kode)!;
         data.prospek += 1;
         if (isLead) data.leads += 1;
+        
+        // Track ID breakdown
+        if (!data.ids.has(idAds)) {
+          data.ids.set(idAds, { prospek: 0, leads: 0 });
+        }
+        const idData = data.ids.get(idAds)!;
+        idData.prospek += 1;
+        if (isLead) idData.leads += 1;
       });
 
       const totalKodeProspek = Array.from(kodeAdsMap.values()).reduce((sum, item) => sum + item.prospek, 0);
@@ -143,7 +188,13 @@ export default function Laporan() {
         leads: data.leads,
         ctr_leads: data.prospek > 0 ? (data.leads / data.prospek) * 100 : 0,
         count: data.prospek,
-        percentage: totalKodeProspek > 0 ? (data.prospek / totalKodeProspek) * 100 : 0
+        percentage: totalKodeProspek > 0 ? (data.prospek / totalKodeProspek) * 100 : 0,
+        breakdown: Array.from(data.ids.entries()).map(([id_ads, idData]) => ({
+          id_ads,
+          prospek: idData.prospek,
+          leads: idData.leads,
+          ctr_leads: idData.prospek > 0 ? (idData.leads / idData.prospek) * 100 : 0
+        }))
       }));
 
       // Process Layanan with additional metrics
@@ -368,30 +419,87 @@ export default function Laporan() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sumber Leads</TableHead>
-                      <TableHead>Prospek</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>CTR Leads</TableHead>
-                      <TableHead>Persentase</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData.sumberLeads.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.sumber_leads}</TableCell>
-                        <TableCell>{item.prospek}</TableCell>
-                        <TableCell>{item.leads}</TableCell>
-                        <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Sumber Leads</TableHead>
+                        <TableHead>Prospek</TableHead>
+                        <TableHead>Leads</TableHead>
+                        <TableHead>CTR Leads</TableHead>
+                        <TableHead>Persentase</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {reportData.sumberLeads.map((item, index) => (
+                        item.sumber_leads === 'Organik' && item.breakdown ? (
+                          <React.Fragment key={index}>
+                            <TableRow>
+                              <TableCell colSpan={5} className="p-0">
+                                <Accordion type="single" collapsible>
+                                  <AccordionItem value={`organik-${index}`} className="border-0">
+                                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                      <div className="flex w-full items-center justify-between">
+                                        <span className="font-medium">{item.sumber_leads}</span>
+                                        <div className="flex gap-8 text-sm">
+                                          <span>{item.prospek}</span>
+                                          <span>{item.leads}</span>
+                                          <span>
+                                            <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
+                                              {item.ctr_leads.toFixed(1)}%
+                                            </Badge>
+                                          </span>
+                                          <span>
+                                            <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="px-4 pb-3">
+                                      <div className="space-y-2">
+                                        {item.breakdown.map((subItem, subIndex) => (
+                                          <div key={subIndex} className="flex items-center justify-between pl-4 py-2 bg-muted/20 rounded">
+                                            <span className="text-sm text-muted-foreground">ID: {subItem.sumber_leads}</span>
+                                            <div className="flex gap-8 text-sm">
+                                              <span>{subItem.prospek}</span>
+                                              <span>{subItem.leads}</span>
+                                              <span>
+                                                <Badge variant={subItem.ctr_leads === 0 ? "destructive" : "default"} className="text-xs">
+                                                  {subItem.ctr_leads.toFixed(1)}%
+                                                </Badge>
+                                              </span>
+                                              <span>
+                                                <Badge variant="outline" className="text-xs">{subItem.percentage.toFixed(1)}%</Badge>
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                </Accordion>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        ) : (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{item.sumber_leads}</TableCell>
+                            <TableCell>{item.prospek}</TableCell>
+                            <TableCell>{item.leads}</TableCell>
+                            <TableCell>
+                              <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
+                                {item.ctr_leads.toFixed(1)}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -432,30 +540,67 @@ export default function Laporan() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Kode Ads</TableHead>
-                      <TableHead>Prospek</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>CTR Leads</TableHead>
-                      <TableHead>Persentase</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData.kodeAds.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.kode}</TableCell>
-                        <TableCell>{item.prospek}</TableCell>
-                        <TableCell>{item.leads}</TableCell>
-                        <TableCell>{item.ctr_leads.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kode</TableHead>
+                        <TableHead>Prospek</TableHead>
+                        <TableHead>Leads</TableHead>
+                        <TableHead>CTR Leads</TableHead>
+                        <TableHead>Persentase</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {reportData.kodeAds.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell colSpan={5} className="p-0">
+                            <Accordion type="single" collapsible>
+                              <AccordionItem value={`kode-${index}`} className="border-0">
+                                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                  <div className="flex w-full items-center justify-between">
+                                    <span className="font-medium">{item.kode}</span>
+                                    <div className="flex gap-8 text-sm">
+                                      <span>{item.prospek}</span>
+                                      <span>{item.leads}</span>
+                                      <span>
+                                        <Badge variant={item.ctr_leads === 0 ? "destructive" : "default"}>
+                                          {item.ctr_leads.toFixed(1)}%
+                                        </Badge>
+                                      </span>
+                                      <span>
+                                        <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-3">
+                                  <div className="space-y-2">
+                                    {item.breakdown?.map((subItem, subIndex) => (
+                                      <div key={subIndex} className="flex items-center justify-between pl-4 py-2 bg-muted/20 rounded">
+                                        <span className="text-sm text-muted-foreground">ID: {subItem.id_ads}</span>
+                                        <div className="flex gap-8 text-sm">
+                                          <span>{subItem.prospek}</span>
+                                          <span>{subItem.leads}</span>
+                                          <span>
+                                            <Badge variant={subItem.ctr_leads === 0 ? "destructive" : "default"} className="text-xs">
+                                              {subItem.ctr_leads.toFixed(1)}%
+                                            </Badge>
+                                          </span>
+                                          <span className="w-16"></span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
