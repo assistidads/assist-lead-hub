@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      ads_budget: {
+        Row: {
+          budget: number
+          budget_spent: number
+          created_at: string
+          id: string
+          kode_ads_id: string
+          updated_at: string
+        }
+        Insert: {
+          budget?: number
+          budget_spent?: number
+          created_at?: string
+          id?: string
+          kode_ads_id: string
+          updated_at?: string
+        }
+        Update: {
+          budget?: number
+          budget_spent?: number
+          created_at?: string
+          id?: string
+          kode_ads_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_budget_kode_ads_id_fkey"
+            columns: ["kode_ads_id"]
+            isOneToOne: false
+            referencedRelation: "kode_ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ads_budget_history: {
+        Row: {
+          ads_budget_id: string
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+        }
+        Insert: {
+          ads_budget_id: string
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+        }
+        Update: {
+          ads_budget_id?: string
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_budget_history_ads_budget_id_fkey"
+            columns: ["ads_budget_id"]
+            isOneToOne: false
+            referencedRelation: "ads_budget"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alasan_bukan_leads: {
         Row: {
           bukan_leads: string

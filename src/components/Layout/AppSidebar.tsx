@@ -5,6 +5,7 @@ import {
   FileText,
   Home,
   Users,
+  TrendingUp,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -36,6 +37,12 @@ const menuItems = [
     title: 'Laporan',
     url: '/laporan',
     icon: BarChart3,
+    roles: ['admin', 'cs_support'],
+  },
+  {
+    title: 'Report Ads',
+    url: '/report-ads',
+    icon: TrendingUp,
     roles: ['admin', 'cs_support'],
   },
   {

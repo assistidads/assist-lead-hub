@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Prospek from "./pages/Prospek";
 import Laporan from "./pages/Laporan";
+import ReportAds from "./pages/ReportAds";
 import Master from "./pages/Master";
 import NotFound from "./pages/NotFound";
 
@@ -53,6 +54,13 @@ const App = () => {
                 <ProtectedRoute>
                   <AppLayout>
                     <Laporan />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/report-ads" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ReportAds />
                   </AppLayout>
                 </ProtectedRoute>
               } />
