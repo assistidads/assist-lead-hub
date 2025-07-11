@@ -326,7 +326,7 @@ const ReportAds: React.FC = () => {
       console.error('Error adding budget:', error);
       toast({
         title: 'Error',
-        description: 'Gagal menambahkan budget',
+        description: 'Penyimpanan data gagal',
         variant: 'destructive',
       });
     }
@@ -431,7 +431,7 @@ const ReportAds: React.FC = () => {
       console.error('Error updating budget spent:', error);
       toast({
         title: 'Error',
-        description: 'Gagal mengupdate budget spent',
+        description: 'Penyimpanan data gagal',
         variant: 'destructive',
       });
     }
@@ -466,7 +466,7 @@ const ReportAds: React.FC = () => {
       console.error('Error adding kode ads:', error);
       toast({
         title: 'Error',
-        description: 'Gagal menambahkan kode ads',
+        description: 'Penyimpanan data gagal',
         variant: 'destructive',
       });
     }
@@ -857,6 +857,26 @@ const ReportAds: React.FC = () => {
               <div>
                 <Label>Budget Spent</Label>
                 <div className="text-lg font-semibold">{formatCurrency(selectedAds?.budget_spent || 0)}</div>
+              </div>
+              <div>
+                <Label>Sisa Budget</Label>
+                <div className="text-lg font-semibold">{formatCurrency((selectedAds?.budget || 0) - (selectedAds?.budget_spent || 0))}</div>
+              </div>
+              <div>
+                <Label>Prospek</Label>
+                <div className="text-lg font-semibold">{selectedAds?.prospek_count || 0}</div>
+              </div>
+              <div>
+                <Label>Leads</Label>
+                <div className="text-lg font-semibold">{selectedAds?.leads_count || 0}</div>
+              </div>
+              <div>
+                <Label>Cost Per Leads</Label>
+                <div className="text-lg font-semibold">{formatCurrency((selectedAds?.leads_count || 0) > 0 ? (selectedAds?.budget_spent || 0) / selectedAds.leads_count : 0)}</div>
+              </div>
+              <div>
+                <Label>CTR Leads</Label>
+                <div className="text-lg font-semibold">{((selectedAds?.prospek_count || 0) > 0 ? ((selectedAds?.leads_count || 0) / selectedAds.prospek_count) * 100 : 0).toFixed(2)}%</div>
               </div>
             </div>
             
