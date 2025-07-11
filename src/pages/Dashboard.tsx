@@ -8,6 +8,66 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, startOfYesterday, endOfYesterday } from 'date-fns';
 
+const TopCities = () => {
+  const [cities, setCities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchTopCities = async () => {
+      try {
+        const { data: prospekData } = await supabase
+          .from('prospek')
+          .select(`
+            kota, 
+            status_leads_id,
+            status_leads (status_leads)
+          `);
+
+        if (prospekData) {
+          const cityStats = prospekData.reduce((acc: any, item) => {
+            if (!acc[item.kota]) {
+              acc[item.kota] = { prospek: 0, leads: 0 };
+            }
+            acc[item.kota].prospek++;
+            
+            if (item.status_leads?.status_leads?.toLowerCase().includes('leads')) {
+              acc[item.kota].leads++;
+            }
+            return acc;
+          }, {});
+
+          const sortedCities = Object.entries(cityStats)
+            .map(([city, stats]: [string, any]) => ({ city, ...stats }))
+            .sort((a, b) => b.leads - a.leads)
+            .slice(0, 5);
+
+          setCities(sortedCities);
+        }
+      } catch (error) {
+        console.error('Error fetching city data:', error);
+      }
+    };
+
+    fetchTopCities();
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      {cities.map((city, index) => (
+        <div key={city.city} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{index + 1}</span>
+            <span className="font-medium">{city.city}</span>
+          </div>
+          <div className="text-right">
+            <div className="font-medium">{city.leads} leads</div>
+            <div className="text-sm text-muted-foreground">dari {city.prospek} prospek</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     prospekToday: 0,
@@ -207,26 +267,7 @@ export default function Dashboard() {
               <CardTitle>Top Performing Cities</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {[
-                  { city: 'Jakarta', leads: 156, prospek: 220 },
-                  { city: 'Surabaya', leads: 89, prospek: 134 },
-                  { city: 'Bandung', leads: 67, prospek: 98 },
-                  { city: 'Medan', leads: 45, prospek: 76 },
-                  { city: 'Semarang', leads: 34, prospek: 52 },
-                ].map((city, index) => (
-                  <div key={city.city} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">{index + 1}</span>
-                      <span className="font-medium">{city.city}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">{city.leads} leads</div>
-                      <div className="text-sm text-muted-foreground">dari {city.prospek} prospek</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <TopCities />
             </CardContent>
           </Card>
         </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -66,8 +67,34 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
         }
       }
 
+      // Special handling for profiles table
+      if (table === 'profiles') {
+        if (!editData && formData.password) {
+          // Create new user with Supabase auth
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: formData.email,
+            password: formData.password,
+            email_confirm: true,
+            user_metadata: {
+              full_name: formData.full_name,
+              role: formData.role
+            }
+          });
+
+          if (authError) throw authError;
+
+          toast.success(`${title} berhasil ditambahkan!`);
+          onSuccess();
+          onOpenChange(false);
+          return;
+        }
+      }
+
       // Prepare data for insertion/update
       const dataToSubmit = { ...formData };
+      if (table === 'profiles') {
+        delete dataToSubmit.password; // Remove password from profile updates
+      }
 
       if (editData) {
         // Use any type to bypass TypeScript checking for dynamic table names
@@ -118,13 +145,37 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
                 {field.label}
                 {field.required && <span className="text-red-500">*</span>}
               </Label>
-              <Input
-                id={field.key}
-                value={formData[field.key] || ''}
-                onChange={(e) => handleInputChange(field.key, e.target.value)}
-                placeholder={`Masukkan ${field.label.toLowerCase()}`}
-                required={field.required}
-              />
+              {field.key === 'role' && table === 'profiles' ? (
+                <Select 
+                  value={formData[field.key] || ''} 
+                  onValueChange={(value) => handleInputChange(field.key, value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="cs_support">CS Support</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : field.key === 'password' ? (
+                <Input
+                  id={field.key}
+                  type="password"
+                  value={formData[field.key] || ''}
+                  onChange={(e) => handleInputChange(field.key, e.target.value)}
+                  placeholder={editData ? 'Kosongkan jika tidak ingin mengubah password' : 'Masukkan password'}
+                  required={!editData && field.required}
+                />
+              ) : (
+                <Input
+                  id={field.key}
+                  value={formData[field.key] || ''}
+                  onChange={(e) => handleInputChange(field.key, e.target.value)}
+                  placeholder={`Masukkan ${field.label.toLowerCase()}`}
+                  required={field.required}
+                />
+              )}
             </div>
           ))}
 

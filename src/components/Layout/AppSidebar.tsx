@@ -86,9 +86,9 @@ export function AppSidebar() {
                       to={item.url}
                       end
                       className={({ isActive }) =>
-                        `flex items-center gap-2 ${
+                        `flex items-center gap-2 text-black ${
                           isActive
-                            ? 'bg-muted text-primary font-medium'
+                            ? 'bg-muted font-medium'
                             : 'hover:bg-muted/50'
                         }`
                       }

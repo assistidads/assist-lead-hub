@@ -1,6 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 interface Activity {
   id: string;
@@ -10,29 +13,6 @@ interface Activity {
   status?: string;
 }
 
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    type: 'prospek_baru',
-    message: 'Prospek baru dari Meta Ads - RS Siloam Jakarta',
-    time: '5 menit yang lalu',
-    status: 'prospek'
-  },
-  {
-    id: '2',
-    type: 'leads_converted',
-    message: 'Prospek converted menjadi leads - Klinik Sehat Bandung',
-    time: '15 menit yang lalu',
-    status: 'leads'
-  },
-  {
-    id: '3',
-    type: 'followup',
-    message: 'Follow up dilakukan ke RS Mitra Surabaya',
-    time: '1 jam yang lalu',
-    status: 'dihubungi'
-  },
-];
 
 const getStatusBadge = (status: string) => {
   const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -50,6 +30,42 @@ const getStatusBadge = (status: string) => {
 };
 
 export function RecentActivity() {
+  const [activities, setActivities] = useState<Activity[]>([]);
+
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      try {
+        const { data: prospekData } = await supabase
+          .from('prospek')
+          .select(`
+            id,
+            nama_faskes,
+            created_at,
+            status_leads_id,
+            status_leads (status_leads)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (prospekData) {
+          const recentActivities = prospekData.map((prospek: any) => ({
+            id: prospek.id,
+            type: 'prospek_baru' as const,
+            message: `Prospek baru - ${prospek.nama_faskes}`,
+            time: format(new Date(prospek.created_at), 'dd/MM/yyyy HH:mm'),
+            status: prospek.status_leads?.status_leads || 'prospek'
+          }));
+
+          setActivities(recentActivities);
+        }
+      } catch (error) {
+        console.error('Error fetching recent activities:', error);
+      }
+    };
+
+    fetchRecentActivities();
+  }, []);
+
   return (
     <Card className="col-span-1">
       <CardHeader>
@@ -57,7 +73,7 @@ export function RecentActivity() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {mockActivities.map((activity) => (
+          {activities.map((activity) => (
             <div key={activity.id} className="flex items-start space-x-4">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium leading-none">
