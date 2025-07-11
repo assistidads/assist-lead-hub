@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,7 +71,6 @@ const ReportAds: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState<AdsData[]>([]);
-  const [filteredData, setFilteredData] = useState<AdsData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKodeAds, setSelectedKodeAds] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
@@ -102,7 +101,9 @@ const ReportAds: React.FC = () => {
     return ((current - previous) / previous) * 100;
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
       
@@ -112,44 +113,43 @@ const ReportAds: React.FC = () => {
       const prevStartDate = startOfMonth(subMonths(startDate, 1));
       const prevEndDate = endOfMonth(subMonths(startDate, 1));
 
-      // Fetch kode_ads with budget data
-      const { data: kodeAdsData, error: kodeError } = await supabase
-        .from('kode_ads')
-        .select(`
-          id,
-          kode,
-          ads_budget (
-            budget,
-            budget_spent
-          )
-        `);
+      // Fetch all data in parallel for better performance
+      const [kodeAdsResult, prospekResult, prevProspekResult, statusResult] = await Promise.all([
+        supabase
+          .from('kode_ads')
+          .select(`
+            id,
+            kode,
+            ads_budget (
+              budget,
+              budget_spent
+            )
+          `),
+        supabase
+          .from('prospek')
+          .select('kode_ads_id, status_leads_id')
+          .gte('tanggal_prospek', format(startDate, 'yyyy-MM-dd'))
+          .lte('tanggal_prospek', format(endDate, 'yyyy-MM-dd')),
+        supabase
+          .from('prospek')
+          .select('kode_ads_id, status_leads_id')
+          .gte('tanggal_prospek', format(prevStartDate, 'yyyy-MM-dd'))
+          .lte('tanggal_prospek', format(prevEndDate, 'yyyy-MM-dd')),
+        supabase
+          .from('status_leads')
+          .select('id, status_leads')
+      ]);
 
-      if (kodeError) throw kodeError;
+      // Check for errors
+      if (kodeAdsResult.error) throw kodeAdsResult.error;
+      if (prospekResult.error) throw prospekResult.error;
+      if (prevProspekResult.error) throw prevProspekResult.error;
+      if (statusResult.error) throw statusResult.error;
 
-      // Fetch prospek data for current period
-      const { data: prospekData, error: prospekError } = await supabase
-        .from('prospek')
-        .select('kode_ads_id, status_leads_id')
-        .gte('tanggal_prospek', format(startDate, 'yyyy-MM-dd'))
-        .lte('tanggal_prospek', format(endDate, 'yyyy-MM-dd'));
-
-      if (prospekError) throw prospekError;
-
-      // Fetch prospek data for previous period
-      const { data: prevProspekData, error: prevProspekError } = await supabase
-        .from('prospek')
-        .select('kode_ads_id, status_leads_id')
-        .gte('tanggal_prospek', format(prevStartDate, 'yyyy-MM-dd'))
-        .lte('tanggal_prospek', format(prevEndDate, 'yyyy-MM-dd'));
-
-      if (prevProspekError) throw prevProspekError;
-
-      // Fetch status_leads to identify leads
-      const { data: statusData, error: statusError } = await supabase
-        .from('status_leads')
-        .select('id, status_leads');
-
-      if (statusError) throw statusError;
+      const { data: kodeAdsData } = kodeAdsResult;
+      const { data: prospekData } = prospekResult;
+      const { data: prevProspekData } = prevProspekResult;
+      const { data: statusData } = statusResult;
 
       const leadsStatusIds = statusData
         ?.filter(status => status.status_leads.toLowerCase().includes('leads'))
@@ -214,7 +214,6 @@ const ReportAds: React.FC = () => {
 
       setMetrics({ current: currentMetrics, previous: previousMetrics });
       setData(currentAdsData);
-      setFilteredData(currentAdsData);
 
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -226,7 +225,7 @@ const ReportAds: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, selectedMonth, toast]);
 
   const fetchBudgetHistory = async (adsId: string) => {
     try {
@@ -331,19 +330,17 @@ const ReportAds: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
+  // Use useMemo to memoize expensive calculations
+  const filteredData = useMemo(() => {
+    if (selectedKodeAds === 'all') {
+      return data;
     }
-  }, [user, selectedMonth]);
+    return data.filter(item => item.kode_ads_id === selectedKodeAds);
+  }, [selectedKodeAds, data]);
 
   useEffect(() => {
-    if (selectedKodeAds === 'all') {
-      setFilteredData(data);
-    } else {
-      setFilteredData(data.filter(item => item.kode_ads_id === selectedKodeAds));
-    }
-  }, [selectedKodeAds, data]);
+    fetchData();
+  }, [fetchData]);
 
   const openBudgetDialog = (ads: AdsData) => {
     setSelectedAds(ads);
