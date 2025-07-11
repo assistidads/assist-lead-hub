@@ -310,21 +310,23 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
     <Card>
       <CardHeader>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <CardTitle>Data Prospek ({totalCount})</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={onOpenForm} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Tambah Prospek
-            </Button>
-            <Button 
-              onClick={() => fetchData(currentPage)} 
-              size="sm" 
-              variant="outline"
-              disabled={loading}
-            >
-              <RotateCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+          <div className="flex items-center gap-4">
+            <CardTitle>Data Prospek ({totalCount})</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={onOpenForm} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Tambah Prospek
+              </Button>
+              <Button 
+                onClick={() => fetchData(currentPage)} 
+                size="sm" 
+                variant="outline"
+                disabled={loading}
+              >
+                <RotateCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </div>
         

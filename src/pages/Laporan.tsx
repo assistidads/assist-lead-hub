@@ -506,7 +506,7 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="kode-ads">
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -607,7 +607,7 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="layanan">
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -742,7 +742,7 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="performa-cs">
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -806,7 +806,7 @@ export default function Laporan() {
         </TabsContent>
 
         <TabsContent value="kota-kabupaten">
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

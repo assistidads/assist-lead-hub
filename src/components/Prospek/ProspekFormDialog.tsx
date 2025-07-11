@@ -483,10 +483,11 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                               <SelectValue placeholder="Pilih ID ads" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
-                            {Array.from({ length: 31 }, (_, i) => (
-                              <SelectItem key={i} value={i.toString()}>
-                                {i === 0 ? 'Form' : i}
+                           <SelectContent>
+                            <SelectItem value="Form">Form</SelectItem>
+                            {Array.from({ length: 30 }, (_, i) => (
+                              <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                {i + 1}
                               </SelectItem>
                             ))}
                           </SelectContent>

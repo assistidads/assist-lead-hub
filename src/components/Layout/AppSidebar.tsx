@@ -28,15 +28,15 @@ const menuItems = [
     roles: ['admin', 'cs_support'],
   },
   {
+    title: 'Data Master',
+    url: '/master',
+    icon: Database,
+    roles: ['admin'],
+  },
+  {
     title: 'Data Prospek',
     url: '/prospek',
     icon: Users,
-    roles: ['admin', 'cs_support'],
-  },
-  {
-    title: 'Laporan',
-    url: '/laporan',
-    icon: BarChart3,
     roles: ['admin', 'cs_support'],
   },
   {
@@ -46,10 +46,10 @@ const menuItems = [
     roles: ['admin', 'cs_support'],
   },
   {
-    title: 'Data Master',
-    url: '/master',
-    icon: Database,
-    roles: ['admin'],
+    title: 'Laporan',
+    url: '/laporan',
+    icon: BarChart3,
+    roles: ['admin', 'cs_support'],
   },
 ];
 
