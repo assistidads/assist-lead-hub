@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           id: string
           kode_ads_id: string
+          last_edited_by: string | null
           updated_at: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           created_at?: string
           id?: string
           kode_ads_id: string
+          last_edited_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           created_at?: string
           id?: string
           kode_ads_id?: string
+          last_edited_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -45,6 +48,13 @@ export type Database = {
             columns: ["kode_ads_id"]
             isOneToOne: false
             referencedRelation: "kode_ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_budget_last_edited_by_fkey"
+            columns: ["last_edited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -56,6 +66,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          user_id: string | null
         }
         Insert: {
           ads_budget_id: string
@@ -63,6 +74,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          user_id?: string | null
         }
         Update: {
           ads_budget_id?: string
@@ -70,6 +82,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -77,6 +90,13 @@ export type Database = {
             columns: ["ads_budget_id"]
             isOneToOne: false
             referencedRelation: "ads_budget"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_budget_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

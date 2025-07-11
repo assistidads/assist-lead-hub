@@ -39,6 +39,8 @@ interface AdsData {
   budget_spent: number;
   prospek_count: number;
   leads_count: number;
+  last_edited_by?: string;
+  last_editor_name?: string;
 }
 
 interface BudgetHistory {
@@ -46,6 +48,10 @@ interface BudgetHistory {
   amount: number;
   description: string;
   created_at: string;
+  user_id?: string;
+  profiles?: {
+    full_name: string;
+  };
 }
 
 interface ReportMetrics {
@@ -124,7 +130,11 @@ const ReportAds: React.FC = () => {
             kode,
             ads_budget (
               budget,
-              budget_spent
+              budget_spent,
+              last_edited_by,
+              profiles:last_edited_by (
+                full_name
+              )
             )
           `),
         supabase
@@ -169,6 +179,8 @@ const ReportAds: React.FC = () => {
           budget_spent: ads.ads_budget?.[0]?.budget_spent || 0,
           prospek_count: prospekForAds.length,
           leads_count: leadsForAds.length,
+          last_edited_by: ads.ads_budget?.[0]?.last_edited_by,
+          last_editor_name: ads.ads_budget?.[0]?.profiles?.full_name || 'Tidak ada',
         };
       }).filter(ads => ads.prospek_count > 0) || [];
 
@@ -241,7 +253,12 @@ const ReportAds: React.FC = () => {
 
       const { data: historyData, error: historyError } = await supabase
         .from('ads_budget_history')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name
+          )
+        `)
         .eq('ads_budget_id', budgetData.id)
         .order('created_at', { ascending: false });
 
@@ -743,13 +760,14 @@ const ReportAds: React.FC = () => {
                 <TableHead>Leads</TableHead>
                 <TableHead>Cost Per Leads</TableHead>
                 <TableHead>CTR Leads</TableHead>
+                <TableHead>Last Edit By</TableHead>
                 <TableHead>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     Tidak ada data untuk periode yang dipilih
                   </TableCell>
                 </TableRow>
@@ -769,6 +787,7 @@ const ReportAds: React.FC = () => {
                       <TableCell>{item.leads_count}</TableCell>
                       <TableCell>{formatCurrency(costPerLeads)}</TableCell>
                       <TableCell>{ctrLeads.toFixed(2)}%</TableCell>
+                      <TableCell>{item.last_editor_name}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -884,19 +903,22 @@ const ReportAds: React.FC = () => {
             </div>
             
             <div>
-              <Label className="text-base font-semibold">History Penambahan Budget</Label>
+              <Label className="text-base font-semibold">History Update Budget</Label>
               <div className="mt-2 max-h-64 overflow-y-auto">
                 {budgetHistory.length === 0 ? (
                   <div className="text-center py-4 text-muted-foreground">
-                    Belum ada history penambahan budget
+                    Belum ada history update budget
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {budgetHistory.map((history) => (
-                      <div key={history.id} className="flex justify-between items-center p-3 border rounded">
-                        <div>
+                      <div key={history.id} className="flex justify-between items-start p-3 border rounded">
+                        <div className="flex-1">
                           <div className="font-medium">{formatCurrency(history.amount)}</div>
                           <div className="text-sm text-muted-foreground">{history.description}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Oleh: {history.profiles?.full_name || 'User tidak diketahui'}
+                          </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {format(new Date(history.created_at), 'dd/MM/yyyy HH:mm')}
