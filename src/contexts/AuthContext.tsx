@@ -29,85 +29,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
     
     console.log('AuthProvider: Initializing auth');
     
-    // Set up auth listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mounted) return;
-        
-        console.log('AuthProvider: Auth state changed:', event);
-        
-        setSession(newSession);
-        
-        if (event === 'SIGNED_IN' && newSession?.user) {
-          console.log('AuthProvider: User signed in, fetching profile');
-          try {
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', newSession.user.id)
-              .single();
-            
-            if (error) {
-              console.error('AuthProvider: Error fetching profile:', error);
-              setUser(null);
-            } else if (profileData && mounted) {
-              setUser({
-                ...profileData,
-                role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
-              });
-            }
-          } catch (error) {
-            console.error('AuthProvider: Profile fetch error:', error);
-            if (mounted) setUser(null);
-          }
-        } else if (event === 'SIGNED_OUT' || !newSession) {
-          console.log('AuthProvider: User signed out');
-          if (mounted) setUser(null);
-        }
-        
-        if (mounted) setLoading(false);
+    // Set timeout to prevent infinite loading (fallback mechanism)
+    timeoutId = setTimeout(() => {
+      if (mounted) {
+        console.log('AuthProvider: Timeout reached, setting loading to false');
+        setLoading(false);
       }
-    );
-
-    // Get initial session
-    const getInitialSession = async () => {
+    }, 10000); // 10 second timeout
+    
+    const handleAuthChange = async (event: string, newSession: Session | null) => {
       if (!mounted) return;
       
+      console.log('AuthProvider: Auth state changed:', event, 'Session exists:', !!newSession);
+      
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log('AuthProvider: Initial session check');
+        setSession(newSession);
         
-        if (currentSession?.user && mounted) {
+        if (newSession?.user) {
+          console.log('AuthProvider: Fetching profile for user:', newSession.user.id);
+          
           const { data: profileData, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', currentSession.user.id)
+            .eq('id', newSession.user.id)
             .single();
           
           if (error) {
-            console.error('AuthProvider: Initial profile fetch error:', error);
-          } else if (profileData) {
+            console.error('AuthProvider: Profile fetch error:', error);
+            setUser(null);
+          } else if (profileData && mounted) {
+            console.log('AuthProvider: Profile loaded successfully');
             setUser({
               ...profileData,
               role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
             });
           }
-          setSession(currentSession);
+        } else {
+          console.log('AuthProvider: No session, clearing user');
+          setUser(null);
         }
       } catch (error) {
-        console.error('AuthProvider: Initial session error:', error);
+        console.error('AuthProvider: Error in auth change handler:', error);
+        setUser(null);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
+      }
+    };
+    
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+
+    // Get initial session
+    const initializeAuth = async () => {
+      if (!mounted) return;
+      
+      try {
+        console.log('AuthProvider: Getting initial session');
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthProvider: Error getting session:', error);
+          if (mounted) setLoading(false);
+          return;
+        }
+        
+        console.log('AuthProvider: Initial session check complete, session exists:', !!currentSession);
+        
+        // Handle the initial session
+        await handleAuthChange('INITIAL', currentSession);
+        
+      } catch (error) {
+        console.error('AuthProvider: Error in initialize auth:', error);
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
       }
     };
 
-    getInitialSession();
+    initializeAuth();
 
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
