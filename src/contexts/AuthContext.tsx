@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .select('*')
             .eq('id', newSession.user.id)
-            .single();
+            .maybeSingle();
           
           if (error) {
             console.error('AuthProvider: Profile fetch error:', error);
@@ -76,6 +76,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               ...profileData,
               role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
+            });
+          } else if (!profileData && mounted) {
+            console.log('AuthProvider: No profile found, creating basic user object');
+            // No profile data found, create basic user object
+            setUser({
+              id: newSession.user.id,
+              email: newSession.user.email || '',
+              full_name: newSession.user.user_metadata?.full_name || newSession.user.email?.split('@')[0] || 'User',
+              role: 'cs_support' as const,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             });
           }
         } else {
