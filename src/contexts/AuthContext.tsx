@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthProvider: Timeout reached, setting loading to false');
         setLoading(false);
       }
-    }, 10000); // 10 second timeout
+    }, 5000); // 5 second timeout
     
     const handleAuthChange = async (event: string, newSession: Session | null) => {
       if (!mounted) return;
@@ -96,7 +96,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('AuthProvider: Error getting session:', error);
-          if (mounted) setLoading(false);
+          if (mounted) {
+            setLoading(false);
+            clearTimeout(timeoutId);
+          }
           return;
         }
         
