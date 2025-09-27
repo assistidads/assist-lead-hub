@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('AuthProvider: Profile fetch error:', error);
             // If profile doesn't exist, create a basic user object from session
             if (mounted) {
+              console.log('AuthProvider: Creating basic user from session data');
               setUser({
                 id: newSession.user.id,
                 email: newSession.user.email || '',
@@ -72,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
             }
           } else if (profileData && mounted) {
-            console.log('AuthProvider: Profile loaded successfully');
+            console.log('AuthProvider: Profile loaded successfully:', profileData);
             setUser({
               ...profileData,
               role: (profileData.role as 'admin' | 'cs_support' | 'advertiser') || 'cs_support'
@@ -98,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
       } finally {
         if (mounted) {
+          console.log('AuthProvider: Setting loading to false');
           setLoading(false);
           clearTimeout(timeoutId);
         }
