@@ -60,7 +60,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (error) {
             console.error('AuthProvider: Profile fetch error:', error);
-            setUser(null);
+            // If profile doesn't exist, create a basic user object from session
+            if (mounted) {
+              setUser({
+                id: newSession.user.id,
+                email: newSession.user.email || '',
+                full_name: newSession.user.user_metadata?.full_name || newSession.user.email?.split('@')[0] || 'User',
+                role: 'cs_support' as const,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            }
           } else if (profileData && mounted) {
             console.log('AuthProvider: Profile loaded successfully');
             setUser({
