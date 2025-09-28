@@ -1,32 +1,15 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { MasterDataTable } from '@/components/Master/MasterDataTable';
 import { MasterDataForm } from '@/components/Master/MasterDataForm';
 
 export default function Master() {
-  const { user, profile } = useAuth();
+  
   const [activeForm, setActiveForm] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  if (!user || !profile) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-lg font-medium">Loading...</p>
-      </div>
-    );
-  }
-
-  if (profile.role !== 'admin') {
-    return (
-      <div className="text-center p-8">
-        <p className="text-lg font-medium">Akses Ditolak</p>
-        <p className="text-muted-foreground">Anda tidak memiliki akses ke halaman ini</p>
-      </div>
-    );
-  }
 
   const handleOpenForm = (tableName: string, data?: any) => {
     setActiveForm(tableName);

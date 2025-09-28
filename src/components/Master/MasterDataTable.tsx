@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { toast } from 'sonner';
 
 interface MasterDataTableProps {
@@ -27,13 +27,11 @@ export const MasterDataTable: React.FC<MasterDataTableProps> = ({
 }) => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const { user, profile } = useAuth();
+  
 
   useEffect(() => {
-    if (user && profile) {
-      fetchData();
-    }
-  }, [table, refreshTrigger, user, profile]);
+    fetchData();
+  }, [table, refreshTrigger]);
 
   const fetchData = async () => {
     console.log(`Fetching data for table: ${table}`);
@@ -85,16 +83,6 @@ export const MasterDataTable: React.FC<MasterDataTableProps> = ({
     const keys = Object.keys(item).filter(key => !['id', 'created_at', 'updated_at'].includes(key));
     return keys.map(key => item[key]).join(' - ');
   };
-
-  if (!user || !profile) {
-    return (
-      <Card className="w-full">
-        <CardContent className="flex items-center justify-center p-8">
-          <p>Silakan login untuk melihat data</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full">

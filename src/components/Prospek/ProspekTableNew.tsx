@@ -10,7 +10,7 @@ import { Pencil, Trash2, Plus, Search, Eye, RotateCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { toast } from 'sonner';
 import type { Prospek } from '@/types/database';
 import { ProspekDetailDialog } from './ProspekDetailDialog';
@@ -31,7 +31,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   onUpdateStatus,
   refreshTrigger,
 }) => {
-  const { user, profile } = useAuth();
+  
   const [data, setData] = useState<Prospek[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,11 +96,6 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
   };
 
   const fetchData = async (page: number = 1) => {
-    if (!user) {
-      setDebugInfo({ error: 'No user logged in' });
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -110,10 +105,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         .from('prospek')
         .select('*', { count: 'exact' });
 
-      // Apply role-based filtering
-      if (profile?.role !== 'admin') {
-        query = query.eq('created_by', user.id);
-      }
+      // No role-based filtering needed
 
       // Apply search filter
       if (searchTerm.trim()) {
@@ -214,8 +206,8 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
         dataCount: prospekData?.length || 0,
         totalCount: count || 0,
         currentPage: page,
-        userRole: profile?.role,
-        userId: user.id,
+        userRole: 'cs_support',
+        userId: 'system',
         hasFilters: {
           search: !!searchTerm,
           filters: Object.keys(activeFilters).length > 0
@@ -235,28 +227,22 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
 
   // Initial data load
   useEffect(() => {
-    if (user && profile) {
-      fetchMasterData();
-      fetchData(1);
-    } else {
-      setDebugInfo({ waiting: 'user or profile not ready' });
-    }
-  }, [user, profile]);
+    fetchMasterData();
+    fetchData(1);
+  }, []);
 
   // Refresh when refreshTrigger changes
   useEffect(() => {
-    if (refreshTrigger > 0 && user && profile) {
+    if (refreshTrigger > 0) {
       fetchData(currentPage);
     }
-  }, [refreshTrigger, currentPage, user, profile]);
+  }, [refreshTrigger, currentPage]);
 
   // Handle filter changes
   useEffect(() => {
-    if (user && profile) {
-      setCurrentPage(1);
-      fetchData(1);
-    }
-  }, [searchTerm, activeFilters, user, profile]);
+    setCurrentPage(1);
+    fetchData(1);
+  }, [searchTerm, activeFilters]);
 
   // Helper functions for displaying data
   const getStatusBadge = (statusId: string) => {
@@ -437,11 +423,7 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                   {data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={15} className="text-center py-8">
-                        {!user ? (
-                          <div className="text-red-600">❌ Anda perlu login untuk melihat data</div>
-                        ) : !profile ? (
-                          <div className="text-yellow-600">⚠️ Profile tidak ditemukan</div>
-                        ) : debugInfo.error ? (
+                        {debugInfo.error ? (
                           <div className="text-red-600">❌ {debugInfo.error}</div>
                         ) : (
                           <div className="text-gray-500">📝 Tidak ada data prospek ditemukan</div>
@@ -495,15 +477,13 @@ export const ProspekTableNew: React.FC<ProspekTableNewProps> = ({
                             >
                               <RotateCw className="w-4 h-4" />
                             </Button>
-                            {(profile?.role === 'admin' || prospek.created_by === user?.id) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(prospek.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(prospek.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

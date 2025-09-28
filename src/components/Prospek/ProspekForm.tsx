@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { toast } from 'sonner';
 
 const formSchema = z.object({
@@ -70,18 +70,13 @@ export const ProspekForm: React.FC<ProspekFormProps> = ({
     },
   });
 
-  const { user } = useAuth();
+  
 
   const [loading, setLoading] = useState(false);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
-      // Ensure user is available
-      if (!user) {
-        throw new Error('User not authenticated.');
-      }
-
       // Call the onSubmit prop to handle the form submission logic
       onSubmit(values);
 

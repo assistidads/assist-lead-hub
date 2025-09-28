@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { Prospek } from '@/types/database';
 
 interface ProspekTableProps {
@@ -19,18 +19,15 @@ interface ProspekTableProps {
 export const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, onOpenForm, searchQuery }) => {
   const [data, setData] = useState<Prospek[]>([]);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return;
-      
       setLoading(true);
       try {
         const { data: prospekData, error } = await supabase
           .from('prospek')
           .select('*')
-          .eq('created_by', user.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -46,7 +43,7 @@ export const ProspekTable: React.FC<ProspekTableProps> = ({ onEdit, onDelete, on
     };
 
     fetchData();
-  }, [user]);
+  }, []);
 
   const filteredData = data.filter(row => 
     searchQuery ? row.nama_prospek.toLowerCase().includes(searchQuery.toLowerCase()) : true

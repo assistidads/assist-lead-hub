@@ -16,7 +16,7 @@ import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { useIndonesiaRegions } from '@/hooks/useIndonesiaRegions';
 import { toast } from 'sonner';
 import type { Prospek } from '@/types/database';
@@ -54,7 +54,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
   prospek,
   onSuccess,
 }) => {
-  const { user, profile } = useAuth();
+  
   const { provinces, cities, fetchCitiesByProvince } = useIndonesiaRegions();
   
   const [masterData, setMasterData] = useState({
@@ -90,7 +90,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
       layanan_assist_id: '',
       alasan_bukan_leads_id: '',
       keterangan_bukan_leads: '',
-      pic_leads_id: profile?.role === 'admin' ? '' : user?.id || '',
+      pic_leads_id: '',
     },
   });
 
@@ -226,7 +226,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
             layanan_assist_id: '',
             alasan_bukan_leads_id: '',
             keterangan_bukan_leads: '',
-            pic_leads_id: profile?.role === 'admin' ? '' : user?.id || '',
+            pic_leads_id: '',
           });
           
           setSelectedSumberLeads('');
@@ -236,7 +236,7 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         }
       });
     }
-  }, [open, prospek, form, profile, user, provinces]);
+  }, [open, prospek, form, provinces]);
 
   const handleSumberLeadsChange = (value: string) => {
     if (!value) return; // Prevent empty string values
@@ -302,8 +302,8 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
         layanan_assist_id: values.layanan_assist_id,
         alasan_bukan_leads_id: values.alasan_bukan_leads_id || null,
         keterangan_bukan_leads: values.keterangan_bukan_leads || null,
-        pic_leads_id: values.pic_leads_id || user?.id,
-        created_by: user?.id,
+        pic_leads_id: values.pic_leads_id || '',
+        created_by: '',
       };
 
       console.log('Prepared prospek data:', prospekData);
@@ -687,32 +687,6 @@ export const ProspekFormDialog: React.FC<ProspekFormDialogProps> = ({
                 )}
               />
 
-              {profile?.role === 'admin' && (
-                <FormField
-                  control={form.control}
-                  name="pic_leads_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>PIC Leads</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || undefined}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih PIC" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {masterData.profiles.map((profile) => (
-                            <SelectItem key={profile.id} value={profile.id}>
-                              {profile.full_name} ({profile.role})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">

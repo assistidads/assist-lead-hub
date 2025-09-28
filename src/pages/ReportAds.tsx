@@ -28,7 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Loader2, Plus, Eye, TrendingUp, TrendingDown, Edit, DollarSign, Users, Target, Calculator, BarChart, Wallet, CreditCard, PiggyBank } from 'lucide-react';
 
@@ -79,7 +79,7 @@ interface ReportMetrics {
 }
 
 const ReportAds: React.FC = () => {
-  const { user } = useAuth();
+  
   const { toast } = useToast();
   const [data, setData] = useState<AdsData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,8 +132,6 @@ const ReportAds: React.FC = () => {
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
-    
     try {
       setLoading(true);
       
@@ -275,7 +273,7 @@ const ReportAds: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, selectedMonth, selectedLayananAssist, toast]);
+  }, [selectedMonth, selectedLayananAssist, toast]);
 
   const fetchBudgetHistory = async (adsId: string) => {
     try {
