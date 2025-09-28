@@ -18,47 +18,35 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useAuth } from '@/contexts/AuthContext';
-
 const menuItems = [
   {
     title: 'Dashboard',
     url: '/',
     icon: Home,
-    roles: ['admin', 'cs_support'],
   },
   {
     title: 'Data Master',
     url: '/master',
     icon: Database,
-    roles: ['admin'],
   },
   {
     title: 'Data Prospek',
     url: '/prospek',
     icon: Users,
-    roles: ['admin', 'cs_support'],
   },
   {
     title: 'Report Ads',
     url: '/report-ads',
     icon: TrendingUp,
-    roles: ['admin', 'cs_support'],
   },
   {
     title: 'Laporan',
     url: '/laporan',
     icon: BarChart3,
-    roles: ['admin', 'cs_support'],
   },
 ];
 
 export function AppSidebar() {
-  const { user } = useAuth();
-
-  const filteredMenuItems = menuItems.filter(item =>
-    item.roles.includes(user?.role || 'cs_support')
-  );
 
   return (
     <Sidebar>
@@ -79,7 +67,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMenuItems.map((item) => (
+              {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink

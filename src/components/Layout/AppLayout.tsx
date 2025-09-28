@@ -1,17 +1,13 @@
 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
-import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { User } from 'lucide-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, logout } = useAuth();
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -27,15 +23,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                <span className="text-sm font-medium">{user?.full_name}</span>
+                <span className="text-sm font-medium">User</span>
                 <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">
-                  {user?.role === 'admin' ? 'Admin' : 'CS Support'}
+                  CS Support
                 </span>
               </div>
-              <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
             </div>
           </header>
           

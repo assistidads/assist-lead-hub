@@ -4,10 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
 import { AppLayout } from "./components/Layout/AppLayout";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Prospek from "./pages/Prospek";
 import Laporan from "./pages/Laporan";
@@ -25,56 +22,41 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  console.log('App: Rendering');
-  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Dashboard />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/prospek" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Prospek />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/laporan" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Laporan />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/report-ads" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ReportAds />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/master" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Master />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            } />
+            <Route path="/prospek" element={
+              <AppLayout>
+                <Prospek />
+              </AppLayout>
+            } />
+            <Route path="/laporan" element={
+              <AppLayout>
+                <Laporan />
+              </AppLayout>
+            } />
+            <Route path="/report-ads" element={
+              <AppLayout>
+                <ReportAds />
+              </AppLayout>
+            } />
+            <Route path="/master" element={
+              <AppLayout>
+                <Master />
+              </AppLayout>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
